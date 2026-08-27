@@ -66,44 +66,51 @@ export function LivePreviewDock({
     );
   }
 
-  // 生成中 (Running)
+  // 生成中 (Running) - 纯净高级毛玻璃微窗口 (Frosted Glassmorphism)
   if (job.status === 'running') {
     return (
-      <div className="relative flex h-full min-h-[160px] w-full flex-col justify-between overflow-hidden rounded-[24px] border border-sky-200/80 bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 p-4 text-white shadow-[0_12px_36px_rgba(15,23,42,.15)] transition sm:min-h-[190px]">
-        {/* 背景动态炫彩光晕 */}
-        <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-sky-500/20 blur-2xl animate-pulse" />
-        <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-purple-500/20 blur-2xl animate-pulse" />
+      <div className="relative flex h-full min-h-[160px] w-full flex-col justify-between overflow-hidden rounded-[24px] border border-white/80 bg-white/70 backdrop-blur-xl p-4 text-neutral-900 shadow-[0_10px_35px_rgba(0,0,0,0.05)] ring-1 ring-neutral-900/5 transition sm:min-h-[190px]">
+        {/* 背景轻柔彩色微光光晕 */}
+        <div className="pointer-events-none absolute -right-6 -top-6 h-36 w-36 rounded-full bg-gradient-to-br from-sky-400/25 via-teal-300/20 to-transparent blur-2xl animate-pulse" />
+        <div className="pointer-events-none absolute -bottom-6 -left-6 h-36 w-36 rounded-full bg-gradient-to-tr from-purple-400/20 via-pink-300/15 to-transparent blur-2xl animate-pulse" />
 
-        {/* 顶部：实时秒表计时器 */}
+        {/* 顶部：状态与实时秒表计时器 */}
         <div className="relative z-10 flex items-center justify-between">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-300 backdrop-blur border border-white/10">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-700 backdrop-blur-md border border-sky-200/60">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-500" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-600" />
             </span>
             渲染中
           </span>
 
-          <div className="inline-flex items-center gap-1 text-xs font-mono font-semibold tracking-wider text-amber-300">
-            <Clock size={13} className="animate-spin text-amber-400" />
+          <div className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-mono font-semibold tracking-wide text-amber-800 border border-amber-200/60 backdrop-blur-md shadow-xs">
+            <Clock size={12} className="animate-spin text-amber-600" />
             <span>{displayElapsed}s</span>
           </div>
         </div>
 
-        {/* 中部：微型流光脉冲骨架与提示 */}
+        {/* 中部：微型毛玻璃流光主体与提示 */}
         <div className="relative z-10 my-auto py-2 text-center">
-          <div className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-white/10 text-sky-400 backdrop-blur shadow-inner">
+          <div className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-white/90 text-sky-600 shadow-sm border border-sky-100/80 backdrop-blur-md">
             <Sparkles size={22} className="animate-pulse" />
           </div>
-          <p className="mt-2 text-xs font-medium text-neutral-200 truncate px-2">
-            {job.prompt ? `"${job.prompt}"` : 'AI 正在构思构图与光影...'}
+          <p className="mt-2 text-xs font-semibold text-neutral-800 truncate px-2">
+            {job.prompt ? `"${job.prompt}"` : 'AI 正在渲染画面...'}
+          </p>
+          <p className="mt-0.5 text-[10px] text-neutral-400">
+            正在构思构图与光影细节
           </p>
         </div>
 
         {/* 底部：模型与比例标签 */}
-        <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-2 text-[11px] text-neutral-400">
-          <span className="truncate max-w-[120px] text-neutral-300 font-medium">{job.model}</span>
-          <span className="rounded bg-white/10 px-1.5 py-0.2 text-[10px] text-neutral-300">{job.ratio}</span>
+        <div className="relative z-10 flex items-center justify-between border-t border-neutral-200/60 pt-2 text-[11px]">
+          <span className="truncate max-w-[120px] rounded-md bg-neutral-100/80 px-2 py-0.5 text-neutral-700 font-medium backdrop-blur-sm">
+            {job.model}
+          </span>
+          <span className="rounded-md bg-neutral-100/80 px-2 py-0.5 text-[10px] text-neutral-600 font-medium backdrop-blur-sm">
+            {job.ratio}
+          </span>
         </div>
       </div>
     );

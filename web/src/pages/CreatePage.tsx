@@ -28,12 +28,17 @@ const FALLBACK_MODELS: Option[] = [
   { value: 'grok-imagine-image', label: 'Grok Imagine', cost: 2 },
 ];
 
+// 常用画幅比例：覆盖社交头像、短视频、横屏壁纸、海报、电影宽幅等主流场景
 const RATIOS = [
-  { value: '1:1', label: '1:1' },
-  { value: '16:9', label: '16:9' },
-  { value: '9:16', label: '9:16' },
-  { value: '4:3', label: '4:3' },
-  { value: '3:4', label: '3:4' },
+  { value: '1:1', label: '1:1 方图' },
+  { value: '4:3', label: '4:3 横屏' },
+  { value: '3:4', label: '3:4 竖屏' },
+  { value: '16:9', label: '16:9 宽屏' },
+  { value: '9:16', label: '9:16 竖屏' },
+  { value: '3:2', label: '3:2 相机' },
+  { value: '2:3', label: '2:3 海报' },
+  { value: '21:9', label: '21:9 电影' },
+  { value: '9:21', label: '9:21 长图' },
 ];
 
 const RESOLUTIONS = [

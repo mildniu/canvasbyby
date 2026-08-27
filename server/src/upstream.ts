@@ -73,13 +73,17 @@ export function saveUserGatewayConfig(
   return getUserGatewayConfig(db, userId, secretKey);
 }
 
-/** OpenAI 兼容尺寸映射 */
+/** OpenAI 兼容尺寸映射（覆盖常用画幅：方图 / 横竖屏 / 相机比例 / 海报 / 电影宽幅 / 长图） */
 const RATIO_SIZE: Record<string, string> = {
   '1:1': '1024x1024',
   '16:9': '1536x864',
   '9:16': '864x1536',
   '4:3': '1152x896',
   '3:4': '896x1152',
+  '3:2': '1200x800',
+  '2:3': '800x1200',
+  '21:9': '1792x768',
+  '9:21': '768x1792',
 };
 
 export function ratioToSize(ratio: string): string {

@@ -281,26 +281,26 @@ export default function CreatePage() {
   };
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-[1500px] px-3 pb-16 pt-6 sm:px-8 sm:pt-10 lg:px-12">
+    <div className="mx-auto min-h-screen w-full max-w-[1500px] px-3 pb-16 pt-5 sm:px-8 sm:pt-10 lg:px-12">
       {/* 居中创作区 (max-w-[1020px]) */}
       <section className="mx-auto max-w-[1020px]">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
-          <h1 className="text-[24px] font-medium tracking-normal text-neutral-950 sm:text-[28px]">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
+          <h1 className="text-[20px] font-medium tracking-normal text-neutral-950 sm:text-[28px]">
             图片
           </h1>
         </div>
 
         {/* 提示词输入卡片 + 右侧实时生成预览微窗口 */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_250px] items-stretch">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-[1fr_250px] items-stretch">
           {/* 核心大输入卡片 (rounded-[28px] + 浮雕投影) */}
-          <div className="flex flex-col justify-between rounded-[24px] border border-neutral-200 bg-white p-3 shadow-[0_18px_55px_rgba(15,23,42,.10)] sm:rounded-[28px] sm:p-4">
+          <div className="flex flex-col justify-between rounded-[20px] border border-neutral-200 bg-white p-2.5 shadow-[0_18px_55px_rgba(15,23,42,.10)] sm:rounded-[28px] sm:p-4">
             <textarea
               ref={textareaRef}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="描述新图片（点击生成后自动清空，方便继续下一次创作）"
               maxLength={5000}
-              className="studio-prompt min-h-[66px] w-full resize-none border-0 bg-transparent px-2 pt-1 text-[15px] font-normal leading-7 text-neutral-950 outline-none ring-0 placeholder:font-normal placeholder:text-neutral-400 focus:border-0 focus:outline-none focus:ring-0"
+              className="studio-prompt min-h-[60px] w-full resize-none border-0 bg-transparent px-2 pt-1 text-sm font-normal leading-6 text-neutral-950 outline-none ring-0 placeholder:font-normal placeholder:text-neutral-400 focus:border-0 focus:outline-none focus:ring-0 sm:min-h-[66px] sm:text-[15px] sm:leading-7"
             />
 
             {/* 底部控制栏 */}
@@ -334,10 +334,10 @@ export default function CreatePage() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="grid h-8 w-8 place-items-center rounded-full text-neutral-600 hover:bg-neutral-100 transition cursor-pointer"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-neutral-600 hover:bg-neutral-100 transition cursor-pointer"
                   title={`上传参考图（支持多图，最多 ${MAX_REFS} 张）`}
                 >
-                  <Upload size={17} />
+                  <Upload size={18} />
                 </button>
 
                 {/* 模型选择 (从中转站动态拉取的可用模型) */}
@@ -403,7 +403,7 @@ export default function CreatePage() {
                 <button
                   type="button"
                   title="语音输入"
-                  className="grid h-8 w-8 place-items-center rounded-full text-neutral-600 hover:bg-neutral-100 cursor-pointer"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-neutral-600 hover:bg-neutral-100 cursor-pointer"
                 >
                   <Mic size={17} />
                 </button>
@@ -414,7 +414,7 @@ export default function CreatePage() {
                   disabled={loading || !prompt.trim() || isInsufficient}
                   title={isInsufficient ? `积分不足（需 ${currentCost} 积分，剩余 ${user?.credits ?? 0} 积分）` : '生成'}
                   className={cn(
-                    'grid h-10 w-10 place-items-center rounded-full text-white transition cursor-pointer',
+                    'grid h-10 w-10 shrink-0 place-items-center rounded-full text-white transition cursor-pointer',
                     isInsufficient
                       ? 'bg-red-400 cursor-not-allowed hover:bg-red-500'
                       : 'bg-neutral-950 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300'

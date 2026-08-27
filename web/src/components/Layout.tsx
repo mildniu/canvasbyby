@@ -103,12 +103,12 @@ export default function Layout() {
       </aside>
 
       {/* 顶部 Header (h-14 = 56px) */}
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-neutral-200 bg-white/95 px-3 backdrop-blur lg:ml-14 lg:px-6">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-neutral-200 bg-white/95 px-2.5 backdrop-blur sm:gap-3 sm:px-3 lg:ml-14 lg:px-6">
         <button
           type="button"
           aria-label={mobileMenuOpen ? '关闭菜单' : '打开菜单'}
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="grid h-10 w-10 place-items-center rounded-full text-neutral-700 hover:bg-neutral-100 lg:hidden"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-neutral-700 hover:bg-neutral-100 lg:hidden"
         >
           {mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
         </button>
@@ -119,7 +119,10 @@ export default function Layout() {
           className="flex items-center gap-2 rounded-full px-1 py-1 text-left"
         >
           <img src="/logo.png" alt="老牛" className="h-7 w-7 rounded-lg" />
-          <span className="text-[15px] font-medium tracking-tight text-neutral-950">老牛 创意生成</span>
+          {/* 手机端顶栏空间有限，隐藏品牌全称，仅保留 Logo 图标；桌面端完整显示 */}
+          <span className="hidden text-[15px] font-medium tracking-tight text-neutral-950 sm:inline">
+            老牛 创意生成
+          </span>
         </button>
 
         <nav className="ml-4 hidden min-w-0 flex-1 items-center gap-1.5 overflow-x-auto lg:flex">
@@ -152,27 +155,33 @@ export default function Layout() {
           )}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2.5">
-          {/* 用户信息与积分徽章 */}
-          <div className="flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-700">
-            <UserIcon size={12} className="text-neutral-500" />
-            <span className="font-medium">{user?.username || '用户'}</span>
-            {user?.role === 'admin' ? (
-              <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[10px] font-medium text-white">管理员</span>
-            ) : null}
+        <div className="ml-auto flex items-center gap-2 sm:gap-2.5">
+          {/* 用户信息徽章：手机端精简为图标+用户名，避免溢出 */}
+          <div className="flex max-w-[38vw] items-center gap-1 rounded-full bg-neutral-100 px-2 py-1 text-[11px] text-neutral-700 sm:max-w-none sm:gap-1.5 sm:px-3 sm:text-xs">
+            <UserIcon size={12} className="shrink-0 text-neutral-500" />
+            <span className="truncate font-medium">{user?.username || '用户'}</span>
+            {user?.role === 'admin' && (
+              <span className="hidden shrink-0 rounded bg-neutral-900 px-1.5 py-0.5 text-[10px] font-medium text-white sm:inline">
+                管理员
+              </span>
+            )}
           </div>
 
+          {/* 积分徽章：手机端紧凑显示 */}
           <div
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition shadow-sm',
+              'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition shadow-sm sm:gap-1.5 sm:px-2.5 sm:text-xs',
               user?.role === 'admin'
                 ? 'bg-amber-50 text-amber-800 border border-amber-200/60'
                 : 'bg-emerald-50 text-emerald-800 border border-emerald-200/60'
             )}
             title={user?.role === 'admin' ? '管理员不受积分限制' : `当前剩余 ${user?.credits ?? 0} 积分`}
           >
-            <Coins size={13} className={user?.role === 'admin' ? 'text-amber-600' : 'text-emerald-600'} />
-            <span>
+            <Coins
+              size={12}
+              className={cn('shrink-0', user?.role === 'admin' ? 'text-amber-600' : 'text-emerald-600')}
+            />
+            <span className="whitespace-nowrap">
               {user?.role === 'admin' ? '无限积分' : `${user?.credits ?? 0} 积分`}
             </span>
           </div>
@@ -188,7 +197,7 @@ export default function Layout() {
           <button
             type="button"
             onClick={handleLogout}
-            className="rounded-full p-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 sm:h-9 sm:w-9"
             title="退出"
           >
             <LogOut size={16} />

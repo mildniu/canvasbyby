@@ -92,12 +92,12 @@ export default function InspirationPage() {
     });
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-[1500px] px-4 pb-16 pt-10 sm:px-8 lg:px-12">
+    <div className="mx-auto min-h-screen w-full max-w-[1500px] px-3 pb-16 pt-6 sm:px-8 sm:pt-10 lg:px-12">
       {/* 头部标题与操作 */}
-      <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <header className="mb-4 flex flex-col gap-3 sm:mb-6 sm:gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-[28px] font-medium text-neutral-950">灵感广场</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-500">
+          <h1 className="text-[22px] font-medium text-neutral-950 sm:text-[28px]">灵感广场</h1>
+          <p className="mt-1.5 max-w-2xl text-xs leading-5 text-neutral-500 sm:mt-2 sm:text-sm sm:leading-6">
             浏览公开作品和精选模板，按分类搜索，查看原图、比例和提示词后直接带入创作。
           </p>
         </div>
@@ -107,7 +107,7 @@ export default function InspirationPage() {
             type="button"
             onClick={loadData}
             disabled={loading}
-            className="inline-flex h-9 items-center gap-2 rounded-full border border-neutral-200 px-3.5 text-sm text-neutral-600 transition hover:bg-neutral-100 disabled:opacity-50"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-neutral-200 px-3 text-[13px] text-neutral-600 transition hover:bg-neutral-100 disabled:opacity-50 sm:gap-2 sm:px-3.5 sm:text-sm"
           >
             <RefreshCw size={14} className={cn(loading && 'animate-spin')} />
             刷新
@@ -116,8 +116,8 @@ export default function InspirationPage() {
       </header>
 
       {/* 搜索与排序 */}
-      <section className="mb-3 rounded-[16px] border border-neutral-200 bg-white p-3 shadow-sm">
-        <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+      <section className="mb-3 rounded-[16px] border border-neutral-200 bg-white p-2.5 shadow-sm sm:p-3">
+        <div className="grid gap-2.5 sm:gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
           <label className="relative block">
             <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
             <input
@@ -129,11 +129,11 @@ export default function InspirationPage() {
           </label>
 
           <label className="flex items-center gap-2 text-sm text-neutral-500">
-            <SlidersHorizontal size={16} />
+            <SlidersHorizontal size={16} className="hidden shrink-0 sm:block" />
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
-              className="h-10 min-w-[130px] rounded-[12px] border border-neutral-200 bg-neutral-50 px-3 text-sm text-neutral-800 outline-none focus:border-neutral-300"
+              className="h-10 w-full min-w-[130px] rounded-[12px] border border-neutral-200 bg-neutral-50 px-3 text-sm text-neutral-800 outline-none focus:border-neutral-300"
             >
               {SORTS.map((s) => (
                 <option key={s.value} value={s.value}>
@@ -155,14 +155,14 @@ export default function InspirationPage() {
               type="button"
               onClick={() => setCategory(c.name)}
               className={cn(
-                'h-8 rounded-full border px-3 text-sm transition flex items-center gap-1.5 cursor-pointer',
+                'h-8 rounded-full border px-2.5 text-[13px] transition flex items-center gap-1.5 cursor-pointer sm:px-3 sm:text-sm',
                 active
                   ? 'border-neutral-950 bg-neutral-950 text-white font-medium shadow-sm'
                   : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-950'
               )}
             >
               <span>{c.name}</span>
-              <span className={cn('text-xs', active ? 'text-white/80 font-normal' : 'text-neutral-400')}>
+              <span className={cn('text-[11px] sm:text-xs', active ? 'text-white/80 font-normal' : 'text-neutral-400')}>
                 {c.count}
               </span>
             </button>
@@ -170,7 +170,7 @@ export default function InspirationPage() {
         })}
       </div>
 
-      <div className="mb-4 flex items-center justify-between text-sm text-neutral-400">
+      <div className="mb-4 flex items-center justify-between text-xs text-neutral-400 sm:text-sm">
         <span>当前分类包含 {filtered.length} 个灵感</span>
       </div>
 

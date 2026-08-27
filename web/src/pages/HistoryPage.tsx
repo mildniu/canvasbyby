@@ -28,11 +28,11 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-[1500px] px-4 pb-16 pt-10 sm:px-8 lg:px-12">
-      <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mx-auto min-h-screen w-full max-w-[1500px] px-3 pb-16 pt-6 sm:px-8 sm:pt-10 lg:px-12">
+      <header className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div>
-          <h1 className="text-[28px] font-medium text-neutral-950">生成历史</h1>
-          <p className="mt-2 text-sm text-neutral-500">
+          <h1 className="text-[22px] font-medium text-neutral-950 sm:text-[28px]">生成历史</h1>
+          <p className="mt-1.5 text-xs leading-5 text-neutral-500 sm:mt-2 sm:text-sm sm:leading-6">
             图片都可以预览、下载，随时管理和删除历史作品。
           </p>
         </div>
@@ -42,7 +42,7 @@ export default function HistoryPage() {
             type="button"
             onClick={loadTasks}
             disabled={loading}
-            className="inline-flex h-9 items-center gap-2 rounded-full border border-neutral-200 px-3.5 text-sm text-neutral-600 transition hover:bg-neutral-100 disabled:opacity-50"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-neutral-200 px-3 text-[13px] text-neutral-600 transition hover:bg-neutral-100 disabled:opacity-50 cursor-pointer sm:gap-2 sm:px-3.5 sm:text-sm"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             刷新
@@ -50,7 +50,7 @@ export default function HistoryPage() {
         </div>
       </header>
 
-      <div className="mb-4 text-sm text-neutral-400">
+      <div className="mb-4 text-xs text-neutral-400 sm:text-sm">
         <span>共 {tasks.length} 条记录</span>
       </div>
 

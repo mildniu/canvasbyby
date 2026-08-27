@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Users, UserPlus, Trash2, KeyRound, Shield, Ban, CheckCircle2, RefreshCw, X, Coins, Plus, Minus } from 'lucide-react';
+import { UserPlus, Trash2, KeyRound, Shield, Ban, CheckCircle2, RefreshCw, X, Coins, Plus, Minus } from 'lucide-react';
+import { cn } from '../lib/utils';
 import { api, type User } from '../lib/api';
 
 export default function AdminUsersPage() {
@@ -119,23 +120,23 @@ export default function AdminUsersPage() {
   };
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-[1100px] px-4 pb-16 pt-10 sm:px-8">
-      <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mx-auto min-h-screen w-full max-w-[1100px] px-3 pb-16 pt-6 sm:px-8 sm:pt-10">
+      <header className="mb-5 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div>
-          <h1 className="text-[28px] font-medium text-neutral-950">用户管理</h1>
-          <p className="mt-2 text-sm text-neutral-500">
+          <h1 className="text-[22px] font-medium text-neutral-950 sm:text-[28px]">用户管理</h1>
+          <p className="mt-1.5 text-xs leading-5 text-neutral-500 sm:mt-2 sm:text-sm sm:leading-6">
             查看所有系统用户、分配管理员权限、充值/设置积分余额、重置密码或停用账号。
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             type="button"
             onClick={loadUsers}
             disabled={loading}
-            className="inline-flex h-9 items-center gap-2 rounded-full border border-neutral-200 px-3.5 text-sm text-neutral-600 transition hover:bg-neutral-100 disabled:opacity-50 cursor-pointer"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 px-3 text-[13px] text-neutral-600 transition hover:bg-neutral-100 disabled:opacity-50 cursor-pointer sm:gap-2 sm:px-3.5 sm:text-sm"
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={cn(loading && 'animate-spin')} />
             刷新
           </button>
           <button
@@ -144,10 +145,10 @@ export default function AdminUsersPage() {
               setNewCredits(20);
               setCreateModal(true);
             }}
-            className="inline-flex h-9 items-center gap-2 rounded-full bg-neutral-950 px-4 text-sm font-medium text-white transition hover:bg-neutral-800 cursor-pointer"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-neutral-950 px-3.5 text-[13px] font-medium text-white transition hover:bg-neutral-800 cursor-pointer sm:gap-2 sm:px-4 sm:text-sm"
           >
-            <UserPlus size={15} />
-            添加新用户
+            <UserPlus size={15} className="shrink-0" />
+            <span className="whitespace-nowrap">添加用户</span>
           </button>
         </div>
       </header>
@@ -155,15 +156,15 @@ export default function AdminUsersPage() {
       {/* 用户表格 */}
       <div className="overflow-hidden rounded-[20px] border border-neutral-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-neutral-700">
-            <thead className="border-b border-neutral-100 bg-neutral-50 text-xs font-medium text-neutral-400">
+          <table className="w-full min-w-[560px] text-left text-[13px] text-neutral-700 sm:text-sm">
+            <thead className="border-b border-neutral-100 bg-neutral-50 text-[11px] font-medium text-neutral-400 sm:text-xs">
               <tr>
-                <th className="px-6 py-4">用户名</th>
-                <th className="px-6 py-4">角色</th>
-                <th className="px-6 py-4">积分余额</th>
-                <th className="px-6 py-4">状态</th>
-                <th className="px-6 py-4">注册时间</th>
-                <th className="px-6 py-4 text-right">操作</th>
+                <th className="px-4 py-3 sm:px-6 sm:py-4">用户名</th>
+                <th className="px-4 py-3 sm:px-6 sm:py-4">角色</th>
+                <th className="px-4 py-3 sm:px-6 sm:py-4">积分余额</th>
+                <th className="px-4 py-3 sm:px-6 sm:py-4">状态</th>
+                <th className="hidden px-4 py-3 sm:table-cell sm:px-6 sm:py-4">注册时间</th>
+                <th className="px-4 py-3 text-right sm:px-6 sm:py-4">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
@@ -172,29 +173,29 @@ export default function AdminUsersPage() {
                 const isActive = u.status === 1;
                 return (
                   <tr key={u.id} className="transition hover:bg-neutral-50/70">
-                    <td className="px-6 py-4 font-medium text-neutral-950">{u.username}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3 font-medium text-neutral-950 sm:px-6 sm:py-4">{u.username}</td>
+                    <td className="px-4 py-3 sm:px-6 sm:py-4">
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium sm:px-2.5 sm:text-xs ${
                           isAdmin ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'
                         }`}
                       >
-                        {isAdmin && <Shield size={11} />}
-                        {isAdmin ? '管理员' : '普通用户'}
+                        {isAdmin && <Shield size={11} className="shrink-0" />}
+                        {isAdmin ? '管理员' : '用户'}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3 sm:px-6 sm:py-4">
                       {isAdmin ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800 border border-amber-200/60">
-                          <Coins size={12} className="text-amber-600" />
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 border border-amber-200/60 sm:px-2.5 sm:text-xs">
+                          <Coins size={12} className="shrink-0 text-amber-600" />
                           无限积分
                         </span>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1 text-sm font-semibold text-neutral-900">
-                            <Coins size={13} className="text-amber-500" />
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-neutral-900 sm:text-sm">
+                            <Coins size={13} className="shrink-0 text-amber-500" />
                             {u.credits ?? 0}
-                            <span className="text-xs font-normal text-neutral-400">分</span>
+                            <span className="text-[11px] font-normal text-neutral-400 sm:text-xs">分</span>
                           </span>
                           <button
                             type="button"
@@ -209,21 +210,21 @@ export default function AdminUsersPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3 sm:px-6 sm:py-4">
                       <span
-                        className={`inline-flex items-center gap-1 text-xs ${
+                        className={`inline-flex items-center gap-1 text-[11px] sm:text-xs ${
                           isActive ? 'text-emerald-600' : 'text-red-500'
                         }`}
                       >
-                        {isActive ? <CheckCircle2 size={13} /> : <Ban size={13} />}
+                        {isActive ? <CheckCircle2 size={13} className="shrink-0" /> : <Ban size={13} className="shrink-0" />}
                         {isActive ? '正常' : '已停用'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-xs text-neutral-400">
+                    <td className="hidden px-4 py-3 text-[11px] text-neutral-400 sm:table-cell sm:px-6 sm:py-4 sm:text-xs">
                       {u.created_at ? new Date(u.created_at).toLocaleDateString() : '-'}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                    <td className="px-4 py-3 text-right sm:px-6 sm:py-4">
+                      <div className="flex items-center justify-end gap-0.5 sm:gap-1.5">
                         {!isAdmin && (
                           <button
                             type="button"
@@ -232,42 +233,42 @@ export default function AdminUsersPage() {
                               setCreditsVal(u.credits ?? 20);
                             }}
                             title="设置积分"
-                            className="rounded-lg p-1.5 text-neutral-500 hover:bg-amber-50 hover:text-amber-700 cursor-pointer"
+                            className="grid h-8 w-8 place-items-center rounded-lg text-neutral-500 hover:bg-amber-50 hover:text-amber-700 cursor-pointer"
                           >
-                            <Coins size={15} />
+                            <Coins size={15} className="shrink-0" />
                           </button>
                         )}
                         <button
                           type="button"
                           onClick={() => setResetModal(u)}
                           title="修改密码"
-                          className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 cursor-pointer"
+                          className="grid h-8 w-8 place-items-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 cursor-pointer"
                         >
-                          <KeyRound size={15} />
+                          <KeyRound size={15} className="shrink-0" />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleToggleRole(u)}
                           title={isAdmin ? '降为普通用户' : '设为管理员'}
-                          className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 cursor-pointer"
+                          className="grid h-8 w-8 place-items-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 cursor-pointer"
                         >
-                          <Shield size={15} />
+                          <Shield size={15} className="shrink-0" />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleToggleStatus(u)}
                           title={isActive ? '禁用用户' : '启用用户'}
-                          className="rounded-lg p-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-amber-600 cursor-pointer"
+                          className="grid h-8 w-8 place-items-center rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-amber-600 cursor-pointer"
                         >
-                          <Ban size={15} />
+                          <Ban size={15} className="shrink-0" />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDeleteUser(u)}
                           title="删除用户"
-                          className="rounded-lg p-1.5 text-neutral-400 hover:bg-red-50 hover:text-red-600 cursor-pointer"
+                          className="grid h-8 w-8 place-items-center rounded-lg text-neutral-400 hover:bg-red-50 hover:text-red-600 cursor-pointer"
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={15} className="shrink-0" />
                         </button>
                       </div>
                     </td>

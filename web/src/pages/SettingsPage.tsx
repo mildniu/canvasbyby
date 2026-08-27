@@ -84,10 +84,10 @@ export default function SettingsPage() {
   const isAdmin = user?.role === 'admin';
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-[800px] px-4 pb-16 pt-10 sm:px-8">
-      <header className="mb-8">
-        <h1 className="text-[28px] font-medium text-neutral-950">设置</h1>
-        <p className="mt-2 text-sm text-neutral-500">
+    <div className="mx-auto min-h-screen w-full max-w-[800px] px-3 pb-16 pt-6 sm:px-8 sm:pt-10">
+      <header className="mb-5 sm:mb-8">
+        <h1 className="text-[22px] font-medium text-neutral-950 sm:text-[28px]">设置</h1>
+        <p className="mt-1.5 text-xs leading-5 text-neutral-500 sm:mt-2 sm:text-sm sm:leading-6">
           配置你的中转站网关与 API Key。所有支持的模型（GPT / Qwen / Gemini / Grok）均可即刻调用。
         </p>
       </header>
@@ -95,25 +95,25 @@ export default function SettingsPage() {
       {/* 专属接口免积分状态提示卡片 */}
       {!isAdmin && (
         <div
-          className={`mb-6 rounded-[20px] p-5 border transition ${
+          className={`mb-5 rounded-[20px] p-4 border transition sm:mb-6 sm:p-5 ${
             isCustom
               ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
               : 'bg-sky-50/80 border-sky-200 text-sky-950'
           }`}
         >
-          <div className="flex items-start gap-3.5">
+          <div className="flex items-start gap-3 sm:gap-3.5">
             <div
-              className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${
+              className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl sm:h-9 sm:w-9 ${
                 isCustom ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white'
               }`}
             >
-              {isCustom ? <Sparkles size={18} /> : <Coins size={18} />}
+              {isCustom ? <Sparkles size={16} /> : <Coins size={16} />}
             </div>
-            <div className="flex-1 text-sm">
-              <h3 className="font-semibold text-base">
+            <div className="min-w-0 flex-1 text-sm">
+              <h3 className="text-[15px] font-semibold sm:text-base">
                 {isCustom ? '已启用专属接口（免积分特权）' : '当前使用平台共享接口'}
               </h3>
-              <p className="mt-1 leading-relaxed text-xs opacity-90">
+              <p className="mt-1 text-[11px] leading-relaxed opacity-90 sm:mt-1.5 sm:text-xs">
                 {isCustom ? (
                   <>
                     您已配置个人专属网关与 Key，后续生成图片将<strong>直接通过您的专属接口运行，完全免费且不消耗任何平台积分！</strong>
@@ -129,12 +129,12 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <div className="rounded-[20px] border border-neutral-200 bg-white p-6 shadow-sm">
-        <form onSubmit={handleSave} className="space-y-6">
+      <div className="rounded-[20px] border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
+        <form onSubmit={handleSave} className="space-y-5 sm:space-y-6">
           <div>
-            <label className="mb-2 block text-sm font-medium text-neutral-900">
+            <label className="mb-2 block text-[13px] font-medium text-neutral-900 sm:text-sm">
               <span className="flex items-center gap-1.5">
-                <Server size={16} className="text-neutral-500" />
+                <Server size={15} className="shrink-0 text-neutral-500 sm:size-4" />
                 中转站网关地址（Base URL）
               </span>
             </label>
@@ -145,15 +145,15 @@ export default function SettingsPage() {
               placeholder={isAdmin ? 'https://your-gateway.example.com' : '例如: https://api.openai.com 或 您的中转站地址'}
               className="h-11 w-full rounded-[12px] border border-neutral-200 bg-neutral-50 px-3.5 text-sm text-neutral-950 outline-none transition placeholder:text-neutral-400 focus:border-neutral-900 focus:bg-white"
             />
-            <p className="mt-1.5 text-xs text-neutral-400">
+            <p className="mt-1.5 text-[11px] text-neutral-400 sm:text-xs">
               OpenAI 兼容中转站 Base URL，末尾无需加 /v1。
             </p>
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-neutral-900">
+            <label className="mb-2 block text-[13px] font-medium text-neutral-900 sm:text-sm">
               <span className="flex items-center gap-1.5">
-                <Key size={16} className="text-neutral-500" />
+                <Key size={15} className="shrink-0 text-neutral-500 sm:size-4" />
                 API Key
               </span>
             </label>
@@ -164,30 +164,30 @@ export default function SettingsPage() {
               placeholder={masked && (isCustom || isAdmin) ? `已配置: ${masked} (留空不修改)` : 'sk-...'}
               className="h-11 w-full rounded-[12px] border border-neutral-200 bg-neutral-50 px-3.5 text-sm text-neutral-950 outline-none transition placeholder:text-neutral-400 focus:border-neutral-900 focus:bg-white"
             />
-            <p className="mt-1.5 text-xs text-neutral-400">
+            <p className="mt-1.5 text-[11px] text-neutral-400 sm:text-xs">
               个人 Key 使用 AES-256-GCM 独立强加密存储，多用户相互物理隔离。
             </p>
           </div>
 
           {msg && (
             <div
-              className={`flex items-center gap-2 rounded-[12px] p-3 text-sm ${
+              className={`flex items-start gap-2 rounded-[12px] p-3 text-[13px] leading-relaxed sm:text-sm ${
                 msg.kind === 'ok'
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                   : 'bg-red-50 text-red-700 border border-red-200'
               }`}
             >
-              {msg.kind === 'ok' ? <Check size={16} /> : <AlertCircle size={16} />}
+              {msg.kind === 'ok' ? <Check size={16} className="mt-0.5 shrink-0" /> : <AlertCircle size={16} className="mt-0.5 shrink-0" />}
               <span>{msg.text}</span>
             </div>
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-1 items-center gap-2.5 sm:flex-none sm:gap-3">
               <button
                 type="submit"
                 disabled={saving}
-                className="inline-flex h-11 items-center justify-center rounded-[12px] bg-neutral-950 px-6 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-50 cursor-pointer"
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-[12px] bg-neutral-950 px-5 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-50 cursor-pointer sm:flex-none sm:px-6"
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : '保存配置'}
               </button>
@@ -196,7 +196,7 @@ export default function SettingsPage() {
                 type="button"
                 onClick={handleTest}
                 disabled={testing || !baseUrl.trim()}
-                className="inline-flex h-11 items-center justify-center rounded-[12px] border border-neutral-200 bg-white px-6 text-sm font-medium text-neutral-800 transition hover:bg-neutral-50 disabled:opacity-50 cursor-pointer"
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-[12px] border border-neutral-200 bg-white px-5 text-sm font-medium text-neutral-800 transition hover:bg-neutral-50 disabled:opacity-50 cursor-pointer sm:flex-none sm:px-6"
               >
                 {testing ? <Loader2 size={16} className="animate-spin" /> : '测试连接'}
               </button>
@@ -207,9 +207,9 @@ export default function SettingsPage() {
                 type="button"
                 onClick={handleResetCustom}
                 disabled={resetting}
-                className="inline-flex h-11 items-center gap-1.5 rounded-[12px] border border-neutral-200 bg-neutral-50 px-4 text-xs font-medium text-neutral-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 cursor-pointer"
+                className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-[12px] border border-neutral-200 bg-neutral-50 px-4 text-xs font-medium text-neutral-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 cursor-pointer sm:w-auto"
               >
-                <RotateCcw size={14} />
+                <RotateCcw size={14} className="shrink-0" />
                 {resetting ? '恢复中…' : '恢复使用平台共享接口'}
               </button>
             )}

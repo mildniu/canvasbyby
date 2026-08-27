@@ -111,27 +111,50 @@ export function LivePreviewDock({
 
   // 失败 (Failed)
   if (job.status === 'failed') {
+    const failedTask: Task = {
+      id: job.id,
+      kind: 'image',
+      status: 'failed',
+      prompt: job.prompt,
+      params: { ratio: job.ratio, model: job.model },
+      resultUrl: null,
+      error: job.error ?? null,
+      createdAt: job.startTime,
+      doneAt: job.startTime + job.elapsedMs,
+    };
+
     return (
-      <div className="relative flex h-full min-h-[160px] w-full flex-col justify-between rounded-[24px] border border-red-200 bg-red-50/70 p-4 text-red-950 transition sm:min-h-[190px]">
+      <div
+        onClick={() => onOpenTask?.(failedTask)}
+        className="group relative flex h-full min-h-[160px] w-full flex-col justify-between rounded-[24px] border border-red-200 bg-red-50/70 p-4 text-red-950 transition hover:shadow-md cursor-pointer sm:min-h-[190px]"
+      >
         <div className="flex items-center justify-between">
           <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600">
             <AlertCircle size={14} />
-            生成失败
+            生成未成功
           </span>
           <span className="text-xs font-mono text-neutral-400">{displayElapsed}s</span>
         </div>
 
-        <p className="my-auto line-clamp-3 text-xs leading-relaxed text-red-700">
-          {job.error || '上游服务暂时响应超时，积分已自动退回'}
-        </p>
+        <div className="my-auto py-1">
+          <p className="line-clamp-2 text-xs font-medium text-red-900">
+            "{job.prompt}"
+          </p>
+          <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-red-600/80">
+            {job.error || '上游服务暂时响应超时，积分已全额退回'}
+          </p>
+        </div>
 
         <div className="flex items-center justify-between border-t border-red-200/60 pt-2 text-[11px]">
-          <span className="text-neutral-500">已退回积分</span>
+          <span className="text-red-700/70">点击查看完整详情</span>
           {onReusePrompt && (
             <button
               type="button"
-              onClick={() => onReusePrompt(job.prompt)}
-              className="inline-flex items-center gap-1 font-medium text-red-600 hover:underline cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onReusePrompt(job.prompt);
+              }}
+              className="inline-flex items-center gap-1 font-medium text-red-700 hover:underline cursor-pointer"
             >
               <RotateCcw size={12} />
               重试填回

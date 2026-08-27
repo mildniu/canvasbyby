@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production build
+web/dist/
+dist/
+
+# Local Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+# SQLite Database & Media
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/media/
+
+# Logs & Temp
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+.trellis/
+/tmp/

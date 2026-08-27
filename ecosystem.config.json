@@ -1,0 +1,14 @@
+{
+  "name": "aigc-studio",
+  "script": "node_modules/.bin/tsx",
+  "args": "server/src/index.ts",
+  "cwd": "/home/ctyun/demo/aigc-studio",
+  "env": {
+    "PORT": "3300",
+    "DATA_DIR": "/home/ctyun/demo/aigc-studio/data",
+    "ACCESS_PASSWORD": "woshiniu2",
+    "SECRET_KEY": "b5085aec3956d0067d09ab199e18ef81f10dc3f16d9fe254ffb931d60b52f172"
+  },
+  "autorestart": true,
+  "max_memory_restart": "512M"
+}

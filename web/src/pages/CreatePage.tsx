@@ -17,6 +17,7 @@ import { PillSelect, type Option } from '../components/PillSelect';
 import { InspirationModal, type InspirationItem } from '../components/InspirationModal';
 import { TaskCard } from '../components/TaskCard';
 import { Lightbox } from '../components/Lightbox';
+import { LivePreviewDock, type ActiveJob } from '../components/LivePreviewDock';
 
 // 静态兜底列表：中转站模型列表拉取失败时使用
 const FALLBACK_MODELS: Option[] = [
@@ -77,6 +78,7 @@ export default function CreatePage() {
   const [templates, setTemplates] = useState<InspirationItem[]>([]);
   const [inspModalOpen, setInspModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [activeJob, setActiveJob] = useState<ActiveJob | null>(null);
   const [previewTask, setPreviewTask] = useState<Task | null>(null);
   const [refPreview, setRefPreview] = useState<{ id: string; name: string; dataUrl: string } | null>(null);
 
@@ -178,26 +180,84 @@ export default function CreatePage() {
   };
 
   const handleGenerate = async () => {
-    if (!prompt.trim() || loading) return;
+    const rawPrompt = prompt.trim();
+    if (!rawPrompt || loading) return;
     if (isInsufficient) {
       alert(`积分不足：模型「${model}」生成需要 ${currentCost} 积分，您当前剩余 ${user?.credits ?? 0} 积分。请联系管理员充值。`);
       return;
     }
+
+    const currentModel = model;
+    const currentRatio = ratio;
+    const currentRefs = refs.map((r) => r.dataUrl);
+    const startTime = Date.now();
+
+    // 1. 初始化右侧微型窗口为「实时生成中」
+    setActiveJob({
+      id: `temp-${startTime}`,
+      prompt: rawPrompt,
+      model: currentModel,
+      ratio: currentRatio,
+      startTime,
+      elapsedMs: 0,
+      status: 'running',
+    });
     setLoading(true);
+
+    // 2. 核心：立即清空输入框与参考图，光标重新就绪，方便进行下一次创作
+    setPrompt('');
+    setRefs([]);
+    requestAnimationFrame(() => textareaRef.current?.focus());
+
+    // 3. 异步请求后端
     try {
       const task = await api.createImage({
-        prompt,
-        ratio,
-        model,
-        refAssets: refs.map((r) => r.dataUrl),
+        prompt: rawPrompt,
+        ratio: currentRatio,
+        model: currentModel,
+        refAssets: currentRefs,
       });
+
+      const elapsedMs = Date.now() - startTime;
+      if (task.status === 'done' && task.resultUrl) {
+        setActiveJob({
+          id: task.id,
+          prompt: rawPrompt,
+          model: currentModel,
+          ratio: currentRatio,
+          startTime,
+          elapsedMs,
+          status: 'done',
+          resultUrl: task.resultUrl,
+        });
+      } else {
+        setActiveJob({
+          id: task.id,
+          prompt: rawPrompt,
+          model: currentModel,
+          ratio: currentRatio,
+          startTime,
+          elapsedMs,
+          status: 'failed',
+          error: task.error || '生成失败',
+        });
+      }
+
       if (typeof task.userCredits === 'number') {
         setCredits(task.userCredits);
       }
       loadTasks();
     } catch (err: any) {
-      alert(err?.message ?? '生成失败');
-      // 刷新用户积分
+      setActiveJob({
+        id: `err-${startTime}`,
+        prompt: rawPrompt,
+        model: currentModel,
+        ratio: currentRatio,
+        startTime,
+        elapsedMs: Date.now() - startTime,
+        status: 'failed',
+        error: err?.message ?? '请求发生错误',
+      });
       api.getMe().then((res) => {
         if (res.user && typeof res.user.credits === 'number') {
           setCredits(res.user.credits);
@@ -222,184 +282,199 @@ export default function CreatePage() {
 
   return (
     <div className="mx-auto min-h-screen w-full max-w-[1500px] px-3 pb-16 pt-6 sm:px-8 sm:pt-10 lg:px-12">
-      {/* 居中创作区 (max-w-[840px]) */}
-      <section className="mx-auto max-w-[840px]">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 sm:mb-6">
+      {/* 居中创作区 (max-w-[1020px]) */}
+      <section className="mx-auto max-w-[1020px]">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
           <h1 className="text-[24px] font-medium tracking-normal text-neutral-950 sm:text-[28px]">
             图片
           </h1>
         </div>
 
-        {/* 核心大输入卡片 (rounded-[28px] + 浮雕投影) */}
-        <div className="rounded-[24px] border border-neutral-200 bg-white p-3 shadow-[0_18px_55px_rgba(15,23,42,.10)] sm:rounded-[28px] sm:p-4">
-          <textarea
-            ref={textareaRef}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="描述新图片"
-            maxLength={5000}
-            className="studio-prompt min-h-[66px] w-full resize-none border-0 bg-transparent px-2 pt-1 text-[15px] font-normal leading-7 text-neutral-950 outline-none ring-0 placeholder:font-normal placeholder:text-neutral-400 focus:border-0 focus:outline-none focus:ring-0"
-          />
+        {/* 提示词输入卡片 + 右侧实时生成预览微窗口 */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_250px] items-stretch">
+          {/* 核心大输入卡片 (rounded-[28px] + 浮雕投影) */}
+          <div className="flex flex-col justify-between rounded-[24px] border border-neutral-200 bg-white p-3 shadow-[0_18px_55px_rgba(15,23,42,.10)] sm:rounded-[28px] sm:p-4">
+            <textarea
+              ref={textareaRef}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="描述新图片（点击生成后自动清空，方便继续下一次创作）"
+              maxLength={5000}
+              className="studio-prompt min-h-[66px] w-full resize-none border-0 bg-transparent px-2 pt-1 text-[15px] font-normal leading-7 text-neutral-950 outline-none ring-0 placeholder:font-normal placeholder:text-neutral-400 focus:border-0 focus:outline-none focus:ring-0"
+            />
 
-          {/* 底部控制栏 */}
-          <div className="mt-2 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-2 max-sm:overflow-x-auto max-sm:pb-1 sm:flex-nowrap">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  handleAddFiles(e.target.files);
-                  e.target.value = '';
-                }}
-              />
+            {/* 底部控制栏 */}
+            <div className="mt-2 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-2 max-sm:overflow-x-auto max-sm:pb-1 sm:flex-nowrap">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    handleAddFiles(e.target.files);
+                    e.target.value = '';
+                  }}
+                />
 
-              {/* 灵感菜单弹窗 */}
-              <InspirationModal
-                open={inspModalOpen}
-                onOpenChange={setInspModalOpen}
-                templates={templates}
-                onPick={(item) => {
-                  setPrompt(item.prompt);
-                  setInspModalOpen(false);
-                  requestAnimationFrame(() => textareaRef.current?.focus());
-                }}
-              />
+                {/* 灵感菜单弹窗 */}
+                <InspirationModal
+                  open={inspModalOpen}
+                  onOpenChange={setInspModalOpen}
+                  templates={templates}
+                  onPick={(item) => {
+                    setPrompt(item.prompt);
+                    setInspModalOpen(false);
+                    requestAnimationFrame(() => textareaRef.current?.focus());
+                  }}
+                />
 
-              {/* 上传参考图按钮 */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="grid h-8 w-8 place-items-center rounded-full text-neutral-600 hover:bg-neutral-100 transition"
-                title={`上传参考图（支持多图，最多 ${MAX_REFS} 张）`}
-              >
-                <Upload size={17} />
-              </button>
-
-              {/* 模型选择 (从中转站动态拉取的可用模型) */}
-              <PillSelect
-                value={model}
-                options={modelOptions}
-                onChange={setModel}
-                wide
-                placeholder="请先在设置中配置网关"
-              />
-
-              {/* 比例选择 */}
-              <PillSelect
-                value={ratio}
-                options={RATIOS}
-                onChange={setRatio}
-              />
-
-              {/* 分辨率 */}
-              <PillSelect
-                value={resolution}
-                options={RESOLUTIONS}
-                onChange={setResolution}
-              />
-
-              {/* 生成张数 */}
-              <PillSelect
-                value={count}
-                options={COUNTS}
-                onChange={setCount}
-              />
-            </div>
-
-            {/* 右侧操作按钮与积分提示 */}
-            <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
-              <div className="flex items-center gap-1.5 text-xs text-neutral-400">
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition',
-                    user?.hasCustomGateway
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
-                      : isInsufficient
-                      ? 'bg-red-50 text-red-600 border border-red-200'
-                      : 'bg-neutral-100 text-neutral-600'
-                  )}
-                  title={
-                    user?.hasCustomGateway
-                      ? '已配置专属网关接口，生成完全免费不消耗积分'
-                      : user?.role === 'admin'
-                      ? '管理员无扣费限制'
-                      : `每次生成消耗 ${currentCost} 积分`
-                  }
+                {/* 上传参考图按钮 */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="grid h-8 w-8 place-items-center rounded-full text-neutral-600 hover:bg-neutral-100 transition cursor-pointer"
+                  title={`上传参考图（支持多图，最多 ${MAX_REFS} 张）`}
                 >
-                  <span>{user?.hasCustomGateway ? '专属接口 (免积分)' : `单次: ${currentCost} 积分`}</span>
-                </span>
-                {isInsufficient && (
-                  <span className="hidden sm:inline text-red-500 font-normal text-[11px]">
-                    (积分不足)
-                  </span>
-                )}
+                  <Upload size={17} />
+                </button>
+
+                {/* 模型选择 (从中转站动态拉取的可用模型) */}
+                <PillSelect
+                  value={model}
+                  options={modelOptions}
+                  onChange={setModel}
+                  wide
+                  placeholder="请先在设置中配置网关"
+                />
+
+                {/* 比例选择 */}
+                <PillSelect
+                  value={ratio}
+                  options={RATIOS}
+                  onChange={setRatio}
+                />
+
+                {/* 分辨率 */}
+                <PillSelect
+                  value={resolution}
+                  options={RESOLUTIONS}
+                  onChange={setResolution}
+                />
+
+                {/* 生成张数 */}
+                <PillSelect
+                  value={count}
+                  options={COUNTS}
+                  onChange={setCount}
+                />
               </div>
 
-              <button
-                type="button"
-                title="语音输入"
-                className="grid h-8 w-8 place-items-center rounded-full text-neutral-600 hover:bg-neutral-100"
-              >
-                <Mic size={17} />
-              </button>
+              {/* 右侧操作按钮与积分提示 */}
+              <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
+                <div className="flex items-center gap-1.5 text-xs text-neutral-400">
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition',
+                      user?.hasCustomGateway
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
+                        : isInsufficient
+                        ? 'bg-red-50 text-red-600 border border-red-200'
+                        : 'bg-neutral-100 text-neutral-600'
+                    )}
+                    title={
+                      user?.hasCustomGateway
+                        ? '已配置专属网关接口，生成完全免费不消耗积分'
+                        : user?.role === 'admin'
+                        ? '管理员无扣费限制'
+                        : `每次生成消耗 ${currentCost} 积分`
+                    }
+                  >
+                    <span>{user?.hasCustomGateway ? '专属接口 (免积分)' : `单次: ${currentCost} 积分`}</span>
+                  </span>
+                  {isInsufficient && (
+                    <span className="hidden sm:inline text-red-500 font-normal text-[11px]">
+                      (积分不足)
+                    </span>
+                  )}
+                </div>
 
-              <button
-                type="button"
-                onClick={handleGenerate}
-                disabled={loading || !prompt.trim() || isInsufficient}
-                title={isInsufficient ? `积分不足（需 ${currentCost} 积分，剩余 ${user?.credits ?? 0} 积分）` : '生成'}
-                className={cn(
-                  'grid h-10 w-10 place-items-center rounded-full text-white transition',
-                  isInsufficient
-                    ? 'bg-red-400 cursor-not-allowed hover:bg-red-500'
-                    : 'bg-neutral-950 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300'
-                )}
-              >
-                {loading ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <ArrowUp size={19} />
-                )}
-              </button>
+                <button
+                  type="button"
+                  title="语音输入"
+                  className="grid h-8 w-8 place-items-center rounded-full text-neutral-600 hover:bg-neutral-100 cursor-pointer"
+                >
+                  <Mic size={17} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={loading || !prompt.trim() || isInsufficient}
+                  title={isInsufficient ? `积分不足（需 ${currentCost} 积分，剩余 ${user?.credits ?? 0} 积分）` : '生成'}
+                  className={cn(
+                    'grid h-10 w-10 place-items-center rounded-full text-white transition cursor-pointer',
+                    isInsufficient
+                      ? 'bg-red-400 cursor-not-allowed hover:bg-red-500'
+                      : 'bg-neutral-950 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300'
+                  )}
+                >
+                  {loading ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <ArrowUp size={19} />
+                  )}
+                </button>
+              </div>
             </div>
+
+            {/* 参考图缩略列表 */}
+            {refs.length > 0 && (
+              <div className="mt-3 border-t border-neutral-100 pt-3">
+                <div className="mb-2 text-xs text-neutral-400">
+                  参考图 {refs.length} / {MAX_REFS}，支持点击放大；图生图会把这些图一起作为参考。
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {refs.map((r, idx) => (
+                    <div
+                      key={r.id}
+                      onClick={() => setRefPreview(r)}
+                      className="group relative h-14 w-14 cursor-pointer overflow-hidden rounded-[12px] bg-neutral-100 outline-none ring-neutral-900/20 transition hover:ring-2"
+                    >
+                      <img src={r.dataUrl} alt={r.name} className="h-full w-full object-cover" />
+                      <span className="pointer-events-none absolute left-1 top-1 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] leading-none text-white">
+                        {idx + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRefs((arr) => arr.filter((x) => x.id !== r.id));
+                        }}
+                        className="absolute right-1 top-1 z-10 grid h-5 w-5 place-items-center rounded-full bg-black/70 text-white opacity-0 transition group-hover:opacity-100"
+                        title="移除"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* 参考图缩略列表 */}
-          {refs.length > 0 && (
-            <div className="mt-3 border-t border-neutral-100 pt-3">
-              <div className="mb-2 text-xs text-neutral-400">
-                参考图 {refs.length} / {MAX_REFS}，支持点击放大；图生图会把这些图一起作为参考。
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {refs.map((r, idx) => (
-                  <div
-                    key={r.id}
-                    onClick={() => setRefPreview(r)}
-                    className="group relative h-14 w-14 cursor-pointer overflow-hidden rounded-[12px] bg-neutral-100 outline-none ring-neutral-900/20 transition hover:ring-2"
-                  >
-                    <img src={r.dataUrl} alt={r.name} className="h-full w-full object-cover" />
-                    <span className="pointer-events-none absolute left-1 top-1 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] leading-none text-white">
-                      {idx + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setRefs((arr) => arr.filter((x) => x.id !== r.id));
-                      }}
-                      className="absolute right-1 top-1 z-10 grid h-5 w-5 place-items-center rounded-full bg-black/70 text-white opacity-0 transition group-hover:opacity-100"
-                      title="移除"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* 右侧：实时生成与耗时预览微窗口 */}
+          <div className="w-full flex">
+            <LivePreviewDock
+              job={activeJob}
+              onOpenTask={(task) => setPreviewTask(task)}
+              onReusePrompt={(p) => {
+                setPrompt(p);
+                requestAnimationFrame(() => textareaRef.current?.focus());
+              }}
+            />
+          </div>
         </div>
       </section>
 

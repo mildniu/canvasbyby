@@ -109,7 +109,7 @@ describe('模型白名单 (Admin Model Whitelist)', () => {
       payload: { prompt: 'a cat', model: 'gpt-image-2', ratio: '1:1' },
     });
     expect(blocked.statusCode).toBe(403);
-    expect(blocked.json().error).toContain('未对普通用户开放');
+    expect(blocked.json().error).toContain('未对您开放');
 
     // 7. 普通用户调用白名单内模型 -> 正常生成并扣 1 积分
     const allowedTask = await app.inject({
@@ -263,6 +263,142 @@ describe('模型白名单 (Admin Model Whitelist)', () => {
       payload: { allowedModels: ['gpt-image-2'] },
     });
     expect(write.statusCode).toBe(403);
+
+    await app.close();
+  });
+
+  it('用户级白名单优先于全局默认，且可恢复继承', async () => {
+    const app = await buildApp({
+      accessPassword: 'woshiniu2',
+      secretKey: 'z'.repeat(32),
+      dataDir: ':memory:dir:',
+      upstreamFetch: makeMockFetch(),
+    });
+    await app.ready();
+
+    const adminLogin = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: 'admin', password: 'woshiniu2' },
+    });
+    const adminCk = getCookie(adminLogin);
+    await app.inject({
+      method: 'PUT',
+      url: '/api/settings',
+      headers: { cookie: adminCk },
+      payload: { baseUrl: 'https://gw.test', apiKey: 'sk-test' },
+    });
+
+    // 全局默认：允许 Qwen-Image 与 gpt-image-2
+    await app.inject({
+      method: 'PUT',
+      url: '/api/admin/allowed-models',
+      headers: { cookie: adminCk },
+      payload: { allowedModels: ['Qwen-Image', 'gpt-image-2'] },
+    });
+
+    // 创建两个用户
+    for (const name of ['alice', 'bob']) {
+      await app.inject({
+        method: 'POST',
+        url: '/api/admin/users',
+        headers: { cookie: adminCk },
+        payload: { username: name, password: 'password123', role: 'user', credits: 50 },
+      });
+    }
+
+    // 用户列表返回用户级白名单状态
+    const usersList = await app.inject({
+      method: 'GET',
+      url: '/api/admin/users',
+      headers: { cookie: adminCk },
+    });
+    const alice = usersList.json().find((u: any) => u.username === 'alice');
+    const bob = usersList.json().find((u: any) => u.username === 'bob');
+    expect(alice.userAllowedModels).toBeNull(); // 未单独设置
+    expect(bob.userAllowedModels).toBeNull();
+
+    // 为 alice 单独设置白名单：仅 gemini-3.1-flash-image（覆盖全局）
+    const setAlice = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/users/${alice.id}/allowed-models`,
+      headers: { cookie: adminCk },
+      payload: { allowedModels: ['gemini-3.1-flash-image'] },
+    });
+    expect(setAlice.statusCode).toBe(200);
+
+    const aliceLogin = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: 'alice', password: 'password123' },
+    });
+    const aliceCk = getCookie(aliceLogin);
+    const bobLogin = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: 'bob', password: 'password123' },
+    });
+    const bobCk = getCookie(bobLogin);
+
+    // alice 只能看到用户级白名单中的 1 个模型（而非全局的 2 个）
+    const aliceModels = await app.inject({
+      method: 'GET',
+      url: '/api/models',
+      headers: { cookie: aliceCk },
+    });
+    expect(aliceModels.json().models).toEqual(['gemini-3.1-flash-image']);
+
+    // bob 跟随全局默认：看到 2 个
+    const bobModels = await app.inject({
+      method: 'GET',
+      url: '/api/models',
+      headers: { cookie: bobCk },
+    });
+    expect(bobModels.json().models).toEqual(['Qwen-Image', 'gpt-image-2']);
+
+    // alice 调用全局允许但用户级未允许的模型 -> 拦截
+    const blocked = await app.inject({
+      method: 'POST',
+      url: '/api/tasks/image',
+      headers: { cookie: aliceCk },
+      payload: { prompt: 'a cat', model: 'Qwen-Image', ratio: '1:1' },
+    });
+    expect(blocked.statusCode).toBe(403);
+
+    // alice 调用自己白名单内的模型 -> 成功
+    const ok = await app.inject({
+      method: 'POST',
+      url: '/api/tasks/image',
+      headers: { cookie: aliceCk },
+      payload: { prompt: 'a cat', model: 'gemini-3.1-flash-image', ratio: '1:1' },
+    });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json().status).toBe('done');
+
+    // 恢复 alice 继承全局默认
+    const inherit = await app.inject({
+      method: 'PUT',
+      url: `/api/admin/users/${alice.id}/allowed-models`,
+      headers: { cookie: adminCk },
+      payload: { mode: 'inherit' },
+    });
+    expect(inherit.statusCode).toBe(200);
+    expect(inherit.json().userAllowedModels).toBeNull();
+
+    // alice 现在跟随全局：能看到 2 个，Qwen-Image 恢复可用
+    const aliceModelsAfter = await app.inject({
+      method: 'GET',
+      url: '/api/models',
+      headers: { cookie: aliceCk },
+    });
+    expect(aliceModelsAfter.json().models).toEqual(['Qwen-Image', 'gpt-image-2']);
+    const okAfter = await app.inject({
+      method: 'POST',
+      url: '/api/tasks/image',
+      headers: { cookie: aliceCk },
+      payload: { prompt: 'a cat', model: 'Qwen-Image', ratio: '1:1' },
+    });
+    expect(okAfter.statusCode).toBe(200);
 
     await app.close();
   });

@@ -5,6 +5,7 @@ export interface User {
   status?: number;
   credits?: number;
   hasCustomGateway?: boolean;
+  userAllowedModels?: string[] | null; // 用户级模型白名单覆盖（null = 跟随全局默认）
   created_at?: number;
 }
 
@@ -91,5 +92,20 @@ export const api = {
     request<{ ok: true; allowedModels: string[] }>('/api/admin/allowed-models', {
       method: 'PUT',
       body: JSON.stringify({ allowedModels }),
+    }),
+  adminGetUserAllowedModels: (id: string) =>
+    request<{
+      userId: string;
+      username: string;
+      userAllowedModels: string[] | null;
+      globalAllowedModels: string[];
+    }>(`/api/admin/users/${id}/allowed-models`),
+  adminSetUserAllowedModels: (
+    id: string,
+    data: { allowedModels?: string[]; mode?: 'override' | 'inherit' }
+  ) =>
+    request<{ ok: true; userAllowedModels: string[] | null }>(`/api/admin/users/${id}/allowed-models`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
     }),
 };

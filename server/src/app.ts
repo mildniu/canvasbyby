@@ -85,6 +85,42 @@ export async function buildApp(opts: AppOptions) {
     return getAllowedModels();
   };
 
+  // ---- 分辨率白名单：与模型白名单完全同构的两级配置 ----
+  // 合法分辨率档位：1K / 2K / 4K
+  const VALID_RESOLUTIONS = ['1K', '2K', '4K'];
+
+  const readResolutionList = (userId: string): string[] | null => {
+    const row = db
+      .prepare('SELECT value FROM user_settings WHERE user_id=? AND key=?')
+      .get(userId, 'allowedResolutions') as { value: string } | undefined;
+    if (!row?.value) return null;
+    try {
+      const parsed = JSON.parse(row.value);
+      if (!Array.isArray(parsed)) return null;
+      // 过滤为合法档位；全被过滤掉则视为空配置
+      const valid = parsed.map(String).filter((v) => VALID_RESOLUTIONS.includes(v));
+      return valid.length > 0 ? valid : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const writeResolutionList = (userId: string, resolutions: string[]) => {
+    const upsert = db.prepare(
+      'INSERT INTO user_settings(user_id,key,value) VALUES(?,?,?) ON CONFLICT(user_id,key) DO UPDATE SET value=excluded.value'
+    );
+    upsert.run(userId, 'allowedResolutions', JSON.stringify(resolutions));
+  };
+
+  const getAllowedResolutions = (): string[] | null => readResolutionList('admin');
+  const setAllowedResolutions = (resolutions: string[]) => writeResolutionList('admin', resolutions);
+
+  const getEffectiveAllowedResolutions = (userId: string): string[] | null => {
+    const userLevel = readResolutionList(userId);
+    if (userLevel) return userLevel;
+    return getAllowedResolutions();
+  };
+
   // 判断某用户在当前网关模式下是否需要受限（专属接口与 admin 不受限）
   const isModelRestricted = (userId: string, role: string, isCustomGateway: boolean): boolean => {
     return role !== 'admin' && !isCustomGateway;
@@ -308,6 +344,7 @@ export async function buildApp(opts: AppOptions) {
       credits: r.role === 'admin' ? 999999 : (r.credits ?? 20),
       // 用户级模型白名单覆盖配置（null = 跟随全局默认）
       userAllowedModels: r.role === 'admin' ? null : readModelList(r.id),
+      userAllowedResolutions: r.role === 'admin' ? null : readResolutionList(r.id),
     }));
   });
 
@@ -471,8 +508,20 @@ export async function buildApp(opts: AppOptions) {
       }
 
       const pricing = getModelsPricingMap(finalModels);
+
+      // 分辨率白名单：普通用户（共享接口模式）仅能使用被允许的分辨率档位；admin/专属接口不受限
+      const effectiveResolutions = restricted
+        ? (getEffectiveAllowedResolutions(req.user!.userId) ?? VALID_RESOLUTIONS)
+        : VALID_RESOLUTIONS;
+
       log('MODELS', `✅ 拉取到 ${all.length} 个模型，其中生图模型 ${imageModels.length} 个`, { imageModels: imageModels.slice(0, 15) });
-      return { models: finalModels, total: all.length, pricing, isCustom: !!cfg.isCustom };
+      return {
+        models: finalModels,
+        total: all.length,
+        pricing,
+        isCustom: !!cfg.isCustom,
+        allowedResolutions: effectiveResolutions,
+      };
     } catch (e: any) {
       logError('MODELS', '拉取模型列表异常', e);
       return reply.code(502).send({ error: e?.message ?? '连接中转站失败' });
@@ -536,14 +585,82 @@ export async function buildApp(opts: AppOptions) {
     return { ok: true, userAllowedModels: cleaned };
   });
 
+  // ---- 管理员：分辨率白名单管理（与模型白名单同构） ----
+  app.get('/api/admin/allowed-resolutions', async (req, reply) => {
+    if (req.user?.role !== 'admin') return reply.code(403).send({ error: '需要管理员权限' });
+    return { allowedResolutions: getAllowedResolutions() ?? [] };
+  });
+
+  app.put('/api/admin/allowed-resolutions', async (req, reply) => {
+    if (req.user?.role !== 'admin') return reply.code(403).send({ error: '需要管理员权限' });
+    const { allowedResolutions } = (req.body ?? {}) as { allowedResolutions?: string[] };
+    if (!Array.isArray(allowedResolutions) || allowedResolutions.some((r) => typeof r !== 'string')) {
+      return reply.code(400).send({ error: '参数错误：allowedResolutions 必须为字符串数组' });
+    }
+    const cleaned = Array.from(
+      new Set(allowedResolutions.map((r) => r.trim().toUpperCase()).filter((r) => VALID_RESOLUTIONS.includes(r)))
+    );
+    setAllowedResolutions(cleaned);
+    log('ADMIN', `管理员更新全局默认分辨率白名单：${cleaned.length ? cleaned.join(', ') : '（不限制，全部放开）'}`);
+    return { ok: true, allowedResolutions: cleaned };
+  });
+
+  app.get('/api/admin/users/:id/allowed-resolutions', async (req, reply) => {
+    if (req.user?.role !== 'admin') return reply.code(403).send({ error: '需要管理员权限' });
+    const { id } = req.params as { id: string };
+    const user = db.prepare('SELECT id, username, role FROM users WHERE id=?').get(id) as any;
+    if (!user) return reply.code(404).send({ error: '用户不存在' });
+    return {
+      userId: id,
+      username: user.username,
+      userAllowedResolutions: readResolutionList(id),
+      globalAllowedResolutions: getAllowedResolutions() ?? [],
+      valid: VALID_RESOLUTIONS,
+    };
+  });
+
+  app.put('/api/admin/users/:id/allowed-resolutions', async (req, reply) => {
+    if (req.user?.role !== 'admin') return reply.code(403).send({ error: '需要管理员权限' });
+    const { id } = req.params as { id: string };
+    const { allowedResolutions, mode } = (req.body ?? {}) as {
+      allowedResolutions?: string[];
+      mode?: 'override' | 'inherit';
+    };
+    const user = db.prepare('SELECT id, username, role FROM users WHERE id=?').get(id) as any;
+    if (!user) return reply.code(404).send({ error: '用户不存在' });
+
+    if (mode === 'inherit') {
+      db.prepare("DELETE FROM user_settings WHERE user_id=? AND key='allowedResolutions'").run(id);
+      log('ADMIN', `管理员将用户 [${user.username}] 的分辨率白名单恢复为跟随全局默认`);
+      return { ok: true, userAllowedResolutions: null };
+    }
+
+    if (!Array.isArray(allowedResolutions) || allowedResolutions.some((r) => typeof r !== 'string')) {
+      return reply.code(400).send({ error: '参数错误：allowedResolutions 必须为字符串数组' });
+    }
+    const cleaned = Array.from(
+      new Set(allowedResolutions.map((r) => r.trim().toUpperCase()).filter((r) => VALID_RESOLUTIONS.includes(r)))
+    );
+    writeResolutionList(id, cleaned);
+    log('ADMIN', `管理员更新用户 [${user.username}] 的专属分辨率白名单：${cleaned.length ? cleaned.join(', ') : '（不限制）'}`);
+    return { ok: true, userAllowedResolutions: cleaned };
+  });
+
   // ---- tasks: 图片生成 ----
   app.post('/api/tasks/image', async (req, reply) => {
     const cfg = getUserGatewayConfig(db, req.user!.userId, opts.secretKey);
-    const { prompt, ratio = '1:1', refAssets = [], model = 'gpt-image-2' } = (req.body ?? {}) as {
+    const {
+      prompt,
+      ratio = '1:1',
+      refAssets = [],
+      model = 'gpt-image-2',
+      resolution = '1K',
+    } = (req.body ?? {}) as {
       prompt?: string;
       ratio?: string;
       refAssets?: string[];
       model?: string;
+      resolution?: string;
     };
 
     const isAdmin = req.user!.role === 'admin';
@@ -575,6 +692,15 @@ export async function buildApp(opts: AppOptions) {
         log('TASK', `⛔ 用户 [${req.user!.username}] 尝试调用未授权模型 [${model}]，已拦截`);
         return reply.code(403).send({
           error: `模型「${model}」未对您开放，请切换到管理员为您允许的模型，或在「设置」中配置您自己的专属接口。`,
+        });
+      }
+
+      // 分辨率白名单校验：仅可使用被允许的分辨率档位（用户级优先）
+      const effectiveResolutions = getEffectiveAllowedResolutions(req.user!.userId);
+      if (effectiveResolutions && !effectiveResolutions.includes(resolution)) {
+        log('TASK', `⛔ 用户 [${req.user!.username}] 尝试使用未授权分辨率 [${resolution}]，已拦截`);
+        return reply.code(403).send({
+          error: `分辨率「${resolution}」未对您开放，请切换到管理员为您允许的分辨率（${effectiveResolutions.join(' / ')}）。`,
         });
       }
     }

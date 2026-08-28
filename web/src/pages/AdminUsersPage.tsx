@@ -10,7 +10,14 @@ interface ModelsWhitelistModalState {
   availableModels: { value: string; cost: number }[];
   mode: 'inherit' | 'override';
   checked: string[];
+  // 分辨率白名单（同一弹窗内管理）
+  userAllowedResolutions: string[] | null;
+  globalAllowedResolutions: string[];
+  resMode: 'inherit' | 'override';
+  resChecked: string[];
 }
+
+const ALL_RESOLUTIONS = ['1K', '2K', '4K'];
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -30,12 +37,13 @@ export default function AdminUsersPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [modelQuery, setModelQuery] = useState('');
 
-  // 打开用户模型白名单弹窗：拉取网关可用模型 + 该用户的当前配置
+  // 打开用户权限弹窗：拉取网关可用模型 + 该用户的模型/分辨率当前配置
   const openModelsModal = async (user: User) => {
     try {
-      const [modelsRes, wlRes] = await Promise.all([
+      const [modelsRes, wlRes, resRes] = await Promise.all([
         api.getModels(),
         api.adminGetUserAllowedModels(user.id),
+        api.adminGetUserAllowedResolutions(user.id),
       ]);
       setModelsModal({
         user,
@@ -47,10 +55,14 @@ export default function AdminUsersPage() {
         })),
         mode: wlRes.userAllowedModels ? 'override' : 'inherit',
         checked: wlRes.userAllowedModels ?? wlRes.globalAllowedModels ?? [],
+        userAllowedResolutions: resRes.userAllowedResolutions,
+        globalAllowedResolutions: resRes.globalAllowedResolutions,
+        resMode: resRes.userAllowedResolutions ? 'override' : 'inherit',
+        resChecked: resRes.userAllowedResolutions ?? resRes.globalAllowedResolutions ?? ALL_RESOLUTIONS,
       });
       setModelQuery('');
     } catch (err: any) {
-      alert(err?.message ?? '加载模型配置失败');
+      alert(err?.message ?? '加载配置失败');
     }
   };
 
@@ -67,10 +79,19 @@ export default function AdminUsersPage() {
     if (!modelsModal || actionLoading) return;
     setActionLoading(true);
     try {
+      // 保存模型白名单
       if (modelsModal.mode === 'inherit') {
         await api.adminSetUserAllowedModels(modelsModal.user.id, { mode: 'inherit' });
       } else {
         await api.adminSetUserAllowedModels(modelsModal.user.id, { allowedModels: modelsModal.checked });
+      }
+      // 保存分辨率白名单
+      if (modelsModal.resMode === 'inherit') {
+        await api.adminSetUserAllowedResolutions(modelsModal.user.id, { mode: 'inherit' });
+      } else {
+        await api.adminSetUserAllowedResolutions(modelsModal.user.id, {
+          allowedResolutions: modelsModal.resChecked,
+        });
       }
       setModelsModal(null);
       loadUsers();
@@ -725,6 +746,91 @@ export default function AdminUsersPage() {
                   </p>
                 </div>
               )}
+
+              {/* 分辨率权限设置 */}
+              <div className="mt-5 border-t border-neutral-100 pt-4">
+                <p className="text-xs font-semibold text-neutral-900">分辨率权限</p>
+                <p className="mt-0.5 text-[10px] text-neutral-400">限制该用户使用平台共享接口时可用的分辨率档位</p>
+
+                <div className="mt-2.5 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setModelsModal((prev) =>
+                        prev
+                          ? { ...prev, resMode: 'inherit', resChecked: prev.globalAllowedResolutions.length ? prev.globalAllowedResolutions : ALL_RESOLUTIONS }
+                          : prev
+                      )
+                    }
+                    className={cn(
+                      'rounded-[12px] border p-2.5 text-left transition cursor-pointer',
+                      modelsModal.resMode === 'inherit'
+                        ? 'border-neutral-900 bg-neutral-950 text-white'
+                        : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300'
+                    )}
+                  >
+                    <p className="text-xs font-semibold">跟随全局默认</p>
+                    <p className={cn('mt-0.5 text-[10px]', modelsModal.resMode === 'inherit' ? 'text-white/70' : 'text-neutral-400')}>
+                      {modelsModal.globalAllowedResolutions.length
+                        ? `全局允许：${modelsModal.globalAllowedResolutions.join(' / ')}`
+                        : '当前全局不限制'}
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModelsModal((prev) => (prev ? { ...prev, resMode: 'override' } : prev))}
+                    className={cn(
+                      'rounded-[12px] border p-2.5 text-left transition cursor-pointer',
+                      modelsModal.resMode === 'override'
+                        ? 'border-violet-600 bg-violet-50'
+                        : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300'
+                    )}
+                  >
+                    <p className="text-xs font-semibold">单独配置（优先级更高）</p>
+                    <p className={cn('mt-0.5 text-[10px]', modelsModal.resMode === 'override' ? 'text-violet-700' : 'text-neutral-400')}>
+                      仅对该用户生效，覆盖全局设置
+                    </p>
+                  </button>
+                </div>
+
+                {modelsModal.resMode === 'override' && (
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    {ALL_RESOLUTIONS.map((r) => {
+                      const checked = modelsModal.resChecked.includes(r);
+                      return (
+                        <label
+                          key={r}
+                          className={cn(
+                            'flex h-9 w-[72px] cursor-pointer items-center justify-center gap-1.5 rounded-[10px] border text-[13px] transition',
+                            checked
+                              ? 'border-violet-500 bg-violet-50 font-semibold text-violet-800'
+                              : 'border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300'
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              setModelsModal((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      resChecked: checked
+                                        ? prev.resChecked.filter((x) => x !== r)
+                                        : [...prev.resChecked, r],
+                                    }
+                                  : prev
+                              )
+                            }
+                            className="h-3.5 w-3.5 cursor-pointer accent-violet-700"
+                          />
+                          {r}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
               <div className="mt-4 flex justify-end gap-2 border-t border-neutral-100 pt-3">
                 <button

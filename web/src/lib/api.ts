@@ -6,6 +6,7 @@ export interface User {
   credits?: number;
   hasCustomGateway?: boolean;
   userAllowedModels?: string[] | null; // 用户级模型白名单覆盖（null = 跟随全局默认）
+  userAllowedResolutions?: string[] | null; // 用户级分辨率白名单覆盖（null = 跟随全局默认）
   created_at?: number;
 }
 
@@ -48,6 +49,7 @@ export interface ModelsResponse {
   models: string[];
   total: number;
   pricing?: Record<string, number>;
+  allowedResolutions?: string[]; // 当前用户可用的分辨率档位
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -118,6 +120,12 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ allowedModels }),
     }),
+  adminGetAllowedResolutions: () => request<{ allowedResolutions: string[] }>('/api/admin/allowed-resolutions'),
+  adminSetAllowedResolutions: (allowedResolutions: string[]) =>
+    request<{ ok: true; allowedResolutions: string[] }>('/api/admin/allowed-resolutions', {
+      method: 'PUT',
+      body: JSON.stringify({ allowedResolutions }),
+    }),
   adminGetUserAllowedModels: (id: string) =>
     request<{
       userId: string;
@@ -130,6 +138,22 @@ export const api = {
     data: { allowedModels?: string[]; mode?: 'override' | 'inherit' }
   ) =>
     request<{ ok: true; userAllowedModels: string[] | null }>(`/api/admin/users/${id}/allowed-models`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  adminGetUserAllowedResolutions: (id: string) =>
+    request<{
+      userId: string;
+      username: string;
+      userAllowedResolutions: string[] | null;
+      globalAllowedResolutions: string[];
+      valid: string[];
+    }>(`/api/admin/users/${id}/allowed-resolutions`),
+  adminSetUserAllowedResolutions: (
+    id: string,
+    data: { allowedResolutions?: string[]; mode?: 'override' | 'inherit' }
+  ) =>
+    request<{ ok: true; userAllowedResolutions: string[] | null }>(`/api/admin/users/${id}/allowed-resolutions`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),

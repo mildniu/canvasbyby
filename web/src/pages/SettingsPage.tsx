@@ -24,6 +24,10 @@ export default function SettingsPage() {
   const [modelsMsg, setModelsMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [modelQuery, setModelQuery] = useState('');
 
+  // 管理员全局分辨率白名单
+  const [globalResolutions, setGlobalResolutions] = useState<string[]>([]);
+  const [savingResolutions, setSavingResolutions] = useState(false);
+
   const isAdmin = user?.role === 'admin';
 
   const loadSettings = () => {
@@ -47,6 +51,9 @@ export default function SettingsPage() {
     api.adminGetAllowedModels().then((r) => {
       setAllowedModels(r.allowedModels ?? []);
     }).catch(() => {});
+    api.adminGetAllowedResolutions().then((r) => {
+      setGlobalResolutions(r.allowedResolutions ?? []);
+    }).catch(() => {});
   };
 
   useEffect(() => {
@@ -56,6 +63,27 @@ export default function SettingsPage() {
 
   const toggleModel = (m: string) => {
     setAllowedModels((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]));
+  };
+
+  const toggleResolution = (r: string) => {
+    setGlobalResolutions((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
+  };
+
+  const saveResolutions = async () => {
+    setSavingResolutions(true);
+    try {
+      await api.adminSetAllowedResolutions(globalResolutions);
+      setModelsMsg({
+        kind: 'ok',
+        text: globalResolutions.length
+          ? `已保存：普通用户仅可使用 ${globalResolutions.join(' / ')} 分辨率`
+          : '已保存：不限制，普通用户可使用全部分辨率',
+      });
+    } catch (err: any) {
+      setModelsMsg({ kind: 'err', text: err?.message ?? '保存失败' });
+    } finally {
+      setSavingResolutions(false);
+    }
   };
 
   const saveWhitelist = async () => {
@@ -371,6 +399,48 @@ export default function SettingsPage() {
           >
             {savingModels ? <Loader2 size={15} className="animate-spin" /> : '保存模型白名单'}
           </button>
+
+          {/* 全局默认分辨率白名单 */}
+          <div className="mt-5 border-t border-neutral-100 pt-4">
+            <p className="text-sm font-semibold text-neutral-950">普通用户可用分辨率（全局默认）</p>
+            <p className="mt-1 text-xs text-neutral-500">
+              勾选允许普通用户（使用平台共享接口时）使用的分辨率档位；不勾选任何档位则不限制。
+              可在「用户管理」中对单个用户单独覆盖。
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {['1K', '2K', '4K'].map((r) => {
+                const checked = globalResolutions.includes(r);
+                return (
+                  <label
+                    key={r}
+                    className={cn(
+                      'flex h-10 w-[84px] cursor-pointer items-center justify-center gap-2 rounded-[12px] border text-sm transition',
+                      checked
+                        ? 'border-violet-500 bg-violet-50 font-semibold text-violet-800'
+                        : 'border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300'
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleResolution(r)}
+                      className="h-4 w-4 cursor-pointer accent-violet-700"
+                    />
+                    {r}
+                  </label>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={saveResolutions}
+              disabled={savingResolutions}
+              className="mt-3 inline-flex h-9 items-center justify-center rounded-[10px] border border-neutral-300 px-4 text-xs font-medium text-neutral-800 transition hover:bg-neutral-50 disabled:opacity-50 cursor-pointer"
+            >
+              {savingResolutions ? <Loader2 size={13} className="animate-spin" /> : '保存分辨率白名单'}
+            </button>
+          </div>
         </div>
       )}
     </div>

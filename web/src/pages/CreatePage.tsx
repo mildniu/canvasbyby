@@ -77,6 +77,7 @@ export default function CreatePage() {
   const [modelOptions, setModelOptions] = useState<Option[]>(FALLBACK_MODELS);
   const [ratio, setRatio] = useState('1:1');
   const [resolution, setResolution] = useState('1K');
+  const [resolutionOptions, setResolutionOptions] = useState<Option[]>(RESOLUTIONS);
   const [count, setCount] = useState('1');
   const [refs, setRefs] = useState<{ id: string; name: string; dataUrl: string }[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -93,7 +94,7 @@ export default function CreatePage() {
   const location = useLocation();
   const nav = useNavigate();
 
-  // 从中转站动态拉取可用生图模型列表及定价
+  // 从中转站动态拉取可用生图模型列表、定价与允许的分辨率档位
   useEffect(() => {
     api
       .getModels()
@@ -107,6 +108,13 @@ export default function CreatePage() {
           setModelOptions(options);
           // 默认选中第一个可用模型
           setModel((cur) => (cur && data.models.includes(cur) ? cur : data.models[0]));
+        }
+        // 分辨率白名单：仅展示被允许的档位；默认选中最高的允许档位
+        if (Array.isArray(data.allowedResolutions) && data.allowedResolutions.length > 0) {
+          const sorted = ['1K', '2K', '4K'].filter((r) => data.allowedResolutions!.includes(r));
+          const resOptions: Option[] = sorted.map((r) => ({ value: r, label: r }));
+          setResolutionOptions(resOptions);
+          setResolution((cur) => (sorted.includes(cur) ? cur : sorted[0]));
         }
       })
       .catch(() => {
@@ -364,7 +372,7 @@ export default function CreatePage() {
                 {/* 分辨率 */}
                 <PillSelect
                   value={resolution}
-                  options={RESOLUTIONS}
+                  options={resolutionOptions}
                   onChange={setResolution}
                 />
 

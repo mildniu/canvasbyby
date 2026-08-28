@@ -32,6 +32,7 @@ const MD_SRC = existsSync(join(SOURCES_DIR, 'zerolu-cn.md'))
 
 const GH_RAW_DAVID = 'https://raw.githubusercontent.com/davidwuw0811-boop/awesome-gpt-image2-prompts/main/';
 const GH_RAW_FF = 'https://raw.githubusercontent.com/freestylefly/awesome-gpt-image-2/main/data';
+const GH_RAW_ZERO = 'https://raw.githubusercontent.com/ZeroLu/awesome-gpt-image/main';
 
 if (!existsSync(DB_PATH)) {
   console.error(`数据库不存在: ${DB_PATH}（请先启动一次服务生成表结构）`);
@@ -194,9 +195,19 @@ if (existsSync(MD_SRC)) {
           promptLines.push(line);
           continue;
         }
-        const img = line.match(/src="(https:\/\/[^"]+)"/);
-        if (img && !current.cover && !img[1].includes('badge')) {
-          current.cover = img[1];
+        // 提取封面：兼容三种形式
+        //   1. HTML <img src="https://...">（绝对 URL，含 twimg）
+        //   2. HTML <img src="assets/...">（仓库相对路径，拼接 GitHub raw）
+        //   3. Markdown ![alt](https://...)（表格内嵌图）
+        const imgAbs = line.match(/src="(https:\/\/[^"]+)"/) || line.match(/!\[[^\]]*\]\((https:\/\/[^)]+)\)/);
+        const imgRel = line.match(/src="(assets\/[^"]+)"/);
+        const badge = (u) => /badge|shield/i.test(u);
+        if (!current.cover) {
+          if (imgAbs && !badge(imgAbs[1])) {
+            current.cover = imgAbs[1];
+          } else if (imgRel && !badge(imgRel[1])) {
+            current.cover = `${GH_RAW_ZERO}/${imgRel[1]}`;
+          }
         }
       }
     }

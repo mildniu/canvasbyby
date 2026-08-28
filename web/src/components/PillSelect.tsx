@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -28,26 +28,84 @@ export function PillSelect({
   placeholder = '请选择',
 }: SelectProps) {
   const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width?: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const selected = options.find((o) => o.value === value) ?? options[0];
 
+  // 打开菜单前实测触发按钮的视口坐标，fixed 弹层据此定位（解决移动端被 overflow 容器裁剪）
+  const toggleMenu = () => {
+    if (disabled) return;
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const rect = ref.current?.getBoundingClientRect();
+    if (rect) {
+      const isMobile = window.innerWidth < 640;
+      const menuWidth = wide ? 240 : 150;
+      // 移动端：贴屏幕左右留 12px 边距全宽展示；桌面端：与按钮左对齐（不超出屏幕右侧）
+      const left = isMobile
+        ? 12
+        : Math.max(12, Math.min(rect.left, window.innerWidth - menuWidth - 12));
+      setMenuPos({
+        top: rect.bottom + 8,
+        left,
+        width: isMobile ? window.innerWidth - 24 : undefined,
+      });
+    }
+    setOpen(true);
+  };
+
+  // 点击外部关闭
   useEffect(() => {
-    const handleOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+    if (!open) return;
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (ref.current?.contains(target)) return; // 触发按钮区域交给 onClick toggle
+      if (menuRef.current?.contains(target)) return; // 菜单内部点击不关闭
+      setOpen(false);
     };
     document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, []);
+    document.addEventListener('touchstart', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [open]);
+
+  // 页面滚动或窗口尺寸变化时关闭菜单，避免 fixed 弹层与按钮错位（菜单内部滚动除外）
+  useEffect(() => {
+    if (!open) return;
+    const handleScrollOrResize = (e: Event) => {
+      if (menuRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [open]);
+
+  // 打开状态下若位置尚未测量（极端时序），补一次测量
+  useLayoutEffect(() => {
+    if (open && !menuPos) {
+      const rect = ref.current?.getBoundingClientRect();
+      if (rect) {
+        setMenuPos({ top: rect.bottom + 8, left: 12, width: window.innerWidth - 24 });
+      }
+    }
+  }, [open, menuPos]);
 
   return (
     <div ref={ref} className="relative shrink-0">
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={toggleMenu}
         className={cn(
           'inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-normal text-sky-600 outline-none transition sm:text-sm',
           wide && 'w-[124px] justify-between sm:w-[160px]',
@@ -66,14 +124,14 @@ export function PillSelect({
         <ChevronDown size={14} className={cn('shrink-0 transition-transform duration-200', open && 'rotate-180')} />
       </button>
 
-      {open && !disabled && (
+      {open && !disabled && menuPos && (
         <div
+          ref={menuRef}
+          style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
           className={cn(
-            'fixed inset-x-3 top-[calc(100%+0.75rem)] z-[60] max-h-[min(60vh,320px)] overflow-y-auto rounded-[18px] border border-neutral-200 bg-white p-1.5 shadow-[0_18px_50px_rgba(15,23,42,.20)] no-scrollbar',
-            'sm:absolute sm:inset-x-auto sm:top-10 sm:max-h-64',
-            wide ? 'sm:min-w-[220px]' : 'sm:min-w-[132px]'
+            'fixed z-[60] max-h-[min(60vh,320px)] overflow-y-auto rounded-[18px] border border-neutral-200 bg-white p-1.5 shadow-[0_18px_50px_rgba(15,23,42,.20)] no-scrollbar',
+            wide ? 'min-w-[220px]' : 'min-w-[132px]'
           )}
-          style={{ maxWidth: 'calc(100vw - 1.5rem)' }}
         >
           {options.map((opt) => {
             const isCur = opt.value === value;

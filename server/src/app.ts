@@ -711,6 +711,68 @@ export async function buildApp(opts: AppOptions) {
     return rows.map(taskRowToApi);
   });
 
+  // ---- 管理员：全局生成记录（跨所有用户，带用户名与统计） ----
+  app.get('/api/admin/tasks', async (req, reply) => {
+    if (req.user?.role !== 'admin') return reply.code(403).send({ error: '需要管理员权限' });
+    const { user, status, model, q } = (req.query ?? {}) as {
+      user?: string; // 用户名（或 'all'）
+      status?: string;
+      model?: string;
+      q?: string;
+    };
+
+    // JOIN users 拿用户名；动态拼接筛选条件
+    const conditions: string[] = ['1=1'];
+    const params: any[] = [];
+    if (user && user !== 'all') {
+      conditions.push('u.username = ?');
+      params.push(user);
+    }
+    if (status && status !== 'all') {
+      conditions.push('t.status = ?');
+      params.push(status);
+    }
+    if (model && model !== 'all') {
+      conditions.push("json_extract(t.params_json, '$.model') = ?");
+      params.push(model);
+    }
+    if (q?.trim()) {
+      conditions.push("(t.prompt LIKE ? OR u.username LIKE ?)");
+      params.push(`%${q.trim()}%`, `%${q.trim()}%`);
+    }
+
+    const where = conditions.join(' AND ');
+    const rows = db
+      .prepare(
+        `SELECT t.*, u.username FROM tasks t LEFT JOIN users u ON t.user_id = u.id
+         WHERE ${where} ORDER BY t.created_at DESC LIMIT 500`
+      )
+      .all(...params) as any[];
+
+    // 汇总统计：总记录、成功数、失败数、总积分消耗、各用户消耗排行
+    const stats = db
+      .prepare(
+        `SELECT u.username, COUNT(*) as count,
+                SUM(CASE WHEN t.status='done' THEN 1 ELSE 0 END) as doneCount,
+                SUM(CASE WHEN t.status='failed' THEN 1 ELSE 0 END) as failedCount,
+                SUM(t.credits_cost) as totalCredits
+         FROM tasks t LEFT JOIN users u ON t.user_id = u.id
+         GROUP BY t.user_id ORDER BY count DESC`
+      )
+      .all() as any[];
+
+    return {
+      tasks: rows.map((r) => ({ ...taskRowToApi(r), username: r.username ?? '未知用户' })),
+      stats: stats.map((s) => ({
+        username: s.username ?? '未知用户',
+        count: s.count,
+        doneCount: s.doneCount ?? 0,
+        failedCount: s.failedCount ?? 0,
+        totalCredits: s.totalCredits ?? 0,
+      })),
+    };
+  });
+
   app.delete('/api/tasks/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
     const row = db.prepare('SELECT * FROM tasks WHERE id=?').get(id) as any;

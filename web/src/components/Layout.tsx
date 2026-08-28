@@ -6,6 +6,7 @@ import {
   History as HistoryIcon,
   Settings as SettingsIcon,
   Users as UsersIcon,
+  ClipboardList as ClipboardListIcon,
   LogOut,
   Menu,
   X,
@@ -34,7 +35,12 @@ export default function Layout() {
   ];
 
   const navBottom = [
-    ...(user?.role === 'admin' ? [{ to: '/admin/users', label: '用户管理', icon: UsersIcon }] : []),
+    ...(user?.role === 'admin'
+      ? [
+          { to: '/admin/users', label: '用户管理', icon: UsersIcon },
+          { to: '/admin/tasks', label: '全部记录', icon: ClipboardListIcon },
+        ]
+      : []),
     { to: '/settings', label: '设置', icon: SettingsIcon },
   ];
 

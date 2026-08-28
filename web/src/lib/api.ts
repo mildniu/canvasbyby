@@ -18,6 +18,7 @@ export interface Settings {
 export interface Task {
   id: string;
   userId?: string;
+  username?: string; // 管理员全局视图下返回
   kind: string;
   status: 'pending' | 'running' | 'done' | 'failed';
   prompt: string;
@@ -28,6 +29,19 @@ export interface Task {
   userCredits?: number;
   createdAt: number;
   doneAt: number | null;
+}
+
+export interface AdminTaskStats {
+  username: string;
+  count: number;
+  doneCount: number;
+  failedCount: number;
+  totalCredits: number;
+}
+
+export interface AdminTasksResponse {
+  tasks: Task[];
+  stats: AdminTaskStats[];
 }
 
 export interface ModelsResponse {
@@ -79,6 +93,15 @@ export const api = {
     request<Task & { userCredits?: number }>('/api/tasks/image', { method: 'POST', body: JSON.stringify(p) }),
   listTasks: (since = 0) => request<Task[]>(`/api/tasks?since=${since}`),
   deleteTask: (id: string) => request<{ ok: true }>(`/api/tasks/${id}`, { method: 'DELETE' }),
+  adminListTasks: (filters: { user?: string; status?: string; model?: string; q?: string } = {}) => {
+    const search = new URLSearchParams();
+    if (filters.user && filters.user !== 'all') search.set('user', filters.user);
+    if (filters.status && filters.status !== 'all') search.set('status', filters.status);
+    if (filters.model && filters.model !== 'all') search.set('model', filters.model);
+    if (filters.q?.trim()) search.set('q', filters.q.trim());
+    const qs = search.toString();
+    return request<AdminTasksResponse>(`/api/admin/tasks${qs ? `?${qs}` : ''}`);
+  },
 
   // Admin APIs
   adminListUsers: () => request<User[]>('/api/admin/users'),

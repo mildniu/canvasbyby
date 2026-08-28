@@ -9,6 +9,7 @@ import InspirationPage from './pages/InspirationPage';
 import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
+import AdminTasksPage from './pages/AdminTasksPage';
 import { useApp } from './stores/app';
 
 function Guard({ children }: { children: React.ReactNode }) {
@@ -60,6 +61,14 @@ const router = createBrowserRouter([
         element: (
           <AdminGuard>
             <AdminUsersPage />
+          </AdminGuard>
+        ),
+      },
+      {
+        path: 'admin/tasks',
+        element: (
+          <AdminGuard>
+            <AdminTasksPage />
           </AdminGuard>
         ),
       },

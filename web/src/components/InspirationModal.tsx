@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Sparkles, X, Search, Star } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { parseBilingualPrompt } from './InspirationDetail';
 
 export interface InspirationItem {
   id: number;
@@ -17,7 +18,8 @@ interface InspirationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   templates: InspirationItem[];
-  onPick: (item: InspirationItem) => void;
+  /** lang: 'zh' 表示填入中文提示词，'en' 表示英文；不传则填入完整原文 */
+  onPick: (item: InspirationItem, lang?: 'zh' | 'en') => void;
 }
 
 export function InspirationModal({
@@ -150,7 +152,9 @@ export function InspirationModal({
               <div className="grid h-28 place-items-center text-sm text-neutral-400">没有匹配的灵感模板</div>
             ) : (
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {filtered.map((item) => (
+                {filtered.map((item) => {
+                  const { zh, en } = parseBilingualPrompt(item.prompt);
+                  return (
                   <div
                     key={item.id}
                     onClick={() => onPick(item)}
@@ -177,16 +181,47 @@ export function InspirationModal({
                         <h4 className="truncate text-xs font-medium text-neutral-900">{item.title}</h4>
                         <span className="shrink-0 text-[10px] text-neutral-400">{item.category}</span>
                       </div>
-                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-neutral-500">{item.prompt}</p>
-                      {item.isFavorite && (
-                        <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-amber-600">
-                          <Star size={10} className="fill-amber-400 text-amber-500" />
-                          已收藏
-                        </span>
-                      )}
+                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-neutral-500">{zh || en}</p>
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        {zh && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPick(item, 'zh');
+                            }}
+                            title="填入中文提示词"
+                            className="inline-flex h-6 items-center gap-1 rounded-md bg-neutral-950 px-2 text-[10px] font-medium text-white transition hover:bg-neutral-800 cursor-pointer"
+                          >
+                            <span className="rounded bg-white/20 px-0.5 text-[8px] font-bold">中</span>
+                            中文
+                          </button>
+                        )}
+                        {en && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPick(item, 'en');
+                            }}
+                            title="填入英文提示词"
+                            className="inline-flex h-6 items-center gap-1 rounded-md border border-neutral-300 px-2 text-[10px] font-medium text-neutral-700 transition hover:bg-white cursor-pointer"
+                          >
+                            <span className="rounded bg-sky-100 px-0.5 text-[8px] font-bold text-sky-700">EN</span>
+                            英文
+                          </button>
+                        )}
+                        {item.isFavorite && (
+                          <span className="ml-auto inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600">
+                            <Star size={10} className="fill-amber-400 text-amber-500" />
+                            已收藏
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

@@ -11,6 +11,7 @@ import {
 import { cn } from '../lib/utils';
 import { api } from '../lib/api';
 import type { InspirationItem } from '../components/InspirationModal';
+import { InspirationDetail, parseBilingualPrompt } from '../components/InspirationDetail';
 
 const SORTS = [
   { value: 'popular', label: '最多点赞' },
@@ -86,15 +87,18 @@ export default function InspirationPage() {
     }
   };
 
-  const handleUse = (item: InspirationItem) => {
+  const handleUse = (prompt: string) => {
     nav('/create/image', {
       state: {
         fromInspiration: true,
-        prompt: item.prompt,
+        prompt,
         ratio: '1:1',
       },
     });
   };
+
+  // 打开详情弹窗（与历史记录 Lightbox 同形式）
+  const [detailItem, setDetailItem] = useState<InspirationItem | null>(null);
 
   const filtered = list
     .filter((item) => {
@@ -208,10 +212,12 @@ export default function InspirationPage() {
         className="columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5"
         style={{ columnWidth: '240px' }}
       >
-        {filtered.map((item) => (
+        {filtered.map((item) => {
+          const { zh, en } = parseBilingualPrompt(item.prompt);
+          return (
           <article
             key={item.id}
-            onClick={() => handleUse(item)}
+            onClick={() => setDetailItem(item)}
             className={cn(
               'group relative mb-4 break-inside-avoid cursor-pointer overflow-hidden rounded-[16px] border bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md',
               item.isFavorite ? 'border-amber-300 ring-1 ring-amber-300/60' : 'border-neutral-200'
@@ -270,7 +276,7 @@ export default function InspirationPage() {
               </div>
 
               <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-neutral-500">
-                {item.prompt}
+                {zh || en}
               </p>
 
               <div className="mt-3 flex items-center justify-between pt-2 border-t border-neutral-100">
@@ -286,23 +292,69 @@ export default function InspirationPage() {
                   <span>{item.likes ?? 0}</span>
                 </button>
 
-                <div className="flex items-center gap-3">
-                  {item.isFavorite && (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
-                      <Star size={12} className="fill-amber-400 text-amber-500" />
-                      已收藏
-                    </span>
-                  )}
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-sky-600 group-hover:translate-x-0.5 transition">
-                    <WandSparkles size={12} />
-                    一键带入
+                {item.isFavorite && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+                    <Star size={12} className="fill-amber-400 text-amber-500" />
+                    已收藏
                   </span>
-                </div>
+                )}
+              </div>
+
+              {/* 中/英文分开一键导入 */}
+              <div className="mt-2 flex gap-2">
+                {zh && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUse(zh);
+                    }}
+                    title="导入中文提示词到工作台"
+                    className="flex h-8 flex-1 items-center justify-center gap-1 rounded-[10px] bg-neutral-950 text-[11px] font-medium text-white transition hover:bg-neutral-800 cursor-pointer"
+                  >
+                    <span className="rounded bg-white/20 px-1 text-[9px] font-bold">中</span>
+                    导入中文
+                  </button>
+                )}
+                {en && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUse(en);
+                    }}
+                    title="导入英文提示词到工作台"
+                    className="flex h-8 flex-1 items-center justify-center gap-1 rounded-[10px] border border-neutral-300 bg-white text-[11px] font-medium text-neutral-800 transition hover:bg-neutral-50 cursor-pointer"
+                  >
+                    <span className="rounded bg-sky-100 px-1 text-[9px] font-bold text-sky-700">EN</span>
+                    导入英文
+                  </button>
+                )}
               </div>
             </div>
           </article>
-        ))}
+          );
+        })}
       </div>
+
+      {/* 详情弹窗（与历史记录 Lightbox 同形式） */}
+      {detailItem && (
+        <InspirationDetail
+          item={detailItem}
+          onClose={() => setDetailItem(null)}
+          onImport={(prompt) => {
+            setDetailItem(null);
+            handleUse(prompt);
+          }}
+          onToggleFavorite={(id) => {
+            const fakeEvt = { stopPropagation: () => {} } as React.MouseEvent;
+            handleFavorite(fakeEvt, id);
+            setDetailItem((prev) => (prev ? { ...prev, isFavorite: !prev.isFavorite } : prev));
+          }}
+          liked={likedIds.has(detailItem.id)}
+          onLike={(id) => handleLike({ stopPropagation: () => {} } as React.MouseEvent, id)}
+        />
+      )}
     </div>
   );
 }

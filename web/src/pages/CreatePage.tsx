@@ -15,6 +15,7 @@ import { cn } from '../lib/utils';
 import { api, type Task } from '../lib/api';
 import { PillSelect, type Option } from '../components/PillSelect';
 import { InspirationModal, type InspirationItem } from '../components/InspirationModal';
+import { parseBilingualPrompt } from '../components/InspirationDetail';
 import { TaskCard } from '../components/TaskCard';
 import { Lightbox } from '../components/Lightbox';
 import { LivePreviewDock, type ActiveJob } from '../components/LivePreviewDock';
@@ -336,8 +337,13 @@ export default function CreatePage() {
                   open={inspModalOpen}
                   onOpenChange={setInspModalOpen}
                   templates={templates}
-                  onPick={(item) => {
-                    setPrompt(item.prompt);
+                  onPick={(item, lang) => {
+                    let text = item.prompt;
+                    if (lang) {
+                      const { zh, en } = parseBilingualPrompt(item.prompt);
+                      text = lang === 'zh' ? zh : en;
+                    }
+                    setPrompt(text);
                     setInspModalOpen(false);
                     requestAnimationFrame(() => textareaRef.current?.focus());
                   }}

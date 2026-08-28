@@ -86,4 +86,10 @@ export const api = {
   adminUpdateUser: (id: string, data: { password?: string; role?: string; status?: number; credits?: number }) =>
     request<{ ok: true }>(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   adminDeleteUser: (id: string) => request<{ ok: true }>(`/api/admin/users/${id}`, { method: 'DELETE' }),
+  adminGetAllowedModels: () => request<{ allowedModels: string[] }>('/api/admin/allowed-models'),
+  adminSetAllowedModels: (allowedModels: string[]) =>
+    request<{ ok: true; allowedModels: string[] }>('/api/admin/allowed-models', {
+      method: 'PUT',
+      body: JSON.stringify({ allowedModels }),
+    }),
 };

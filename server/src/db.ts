@@ -56,6 +56,13 @@ export function openDb(dataDir: string): { db: Db; mediaDir: string } {
       is_own INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS inspiration_favorites (
+      user_id TEXT NOT NULL,
+      inspiration_id INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (user_id, inspiration_id)
+    );
   `);
 
   // 检查 tasks 表是否有 user_id 列，没有则迁移添加

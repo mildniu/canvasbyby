@@ -828,10 +828,22 @@ export async function buildApp(opts: AppOptions) {
   // ---- inspirations 灵感模板 ----
   app.get('/api/inspirations', async (req) => {
     const { category, q } = (req.query ?? {}) as { category?: string; q?: string };
+    // 当前用户的收藏集合（用于前端标记收藏状态）
+    const favRows = db
+      .prepare('SELECT inspiration_id FROM inspiration_favorites WHERE user_id=?')
+      .all(req.user!.userId) as any[];
+    const favSet = new Set(favRows.map((r) => r.inspiration_id));
+
     let rows = db
       .prepare('SELECT * FROM inspirations ORDER BY likes DESC, id ASC')
       .all() as any[];
-    if (category && category !== '全部') rows = rows.filter((r) => r.category === category);
+    if (category && category !== '全部') {
+      if (category === '__favorites__') {
+        rows = rows.filter((r) => favSet.has(r.id));
+      } else {
+        rows = rows.filter((r) => r.category === category);
+      }
+    }
     if (q?.trim()) {
       const needle = q.trim().toLowerCase();
       rows = rows.filter((r) => `${r.title}${r.prompt}${r.tags}`.toLowerCase().includes(needle));
@@ -849,7 +861,33 @@ export async function buildApp(opts: AppOptions) {
         : null,
       likes: r.likes,
       isOwn: !!r.is_own,
+      isFavorite: favSet.has(r.id),
     }));
+  });
+
+  // ---- 收藏 / 取消收藏（每用户独立） ----
+  app.post('/api/inspirations/:id/favorite', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const numId = Number(id);
+    const exist = db.prepare('SELECT id FROM inspirations WHERE id=?').get(numId);
+    if (!exist) return reply.code(404).send({ error: 'not found' });
+
+    const cur = db
+      .prepare('SELECT 1 FROM inspiration_favorites WHERE user_id=? AND inspiration_id=?')
+      .get(req.user!.userId, numId);
+    if (cur) {
+      db.prepare('DELETE FROM inspiration_favorites WHERE user_id=? AND inspiration_id=?').run(
+        req.user!.userId,
+        numId
+      );
+      return { favorite: false };
+    }
+    db.prepare('INSERT INTO inspiration_favorites(user_id, inspiration_id, created_at) VALUES(?,?,?)').run(
+      req.user!.userId,
+      numId,
+      Date.now()
+    );
+    return { favorite: true };
   });
 
   app.post('/api/inspirations/:id/like', async (req, reply) => {

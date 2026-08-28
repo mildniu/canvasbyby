@@ -6,14 +6,18 @@ import {
   RefreshCw,
   Heart,
   WandSparkles,
+  Star,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { api } from '../lib/api';
 import type { InspirationItem } from '../components/InspirationModal';
 
 const SORTS = [
   { value: 'popular', label: '最多点赞' },
   { value: 'latest', label: '最新' },
 ];
+
+const FAVORITES_TAB = '__favorites__';
 
 export default function InspirationPage() {
   const [list, setList] = useState<InspirationItem[]>([]);
@@ -39,16 +43,19 @@ export default function InspirationPage() {
     loadData();
   }, []);
 
-  // 动态生成可用分类列表及数量统计
+  // 动态生成可用分类列表及数量统计（收藏数单独统计）
   const categoryStats = useMemo(() => {
     const counts: Record<string, number> = {};
+    let favCount = 0;
     for (const item of list) {
       const c = item.category || '其他';
       counts[c] = (counts[c] || 0) + 1;
+      if (item.isFavorite) favCount++;
     }
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     return [
       { name: '全部', count: list.length },
+      { name: FAVORITES_TAB, count: favCount },
       ...sorted.map(([name, count]) => ({ name, count })),
     ];
   }, [list]);
@@ -67,6 +74,18 @@ export default function InspirationPage() {
     } catch {}
   };
 
+  // 收藏 / 取消收藏（乐观更新）
+  const handleFavorite = async (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    setList((prev) => prev.map((item) => (item.id === id ? { ...item, isFavorite: !item.isFavorite } : item)));
+    try {
+      await api.toggleFavorite(id);
+    } catch {
+      // 失败回滚
+      setList((prev) => prev.map((item) => (item.id === id ? { ...item, isFavorite: !item.isFavorite } : item)));
+    }
+  };
+
   const handleUse = (item: InspirationItem) => {
     nav('/create/image', {
       state: {
@@ -79,7 +98,9 @@ export default function InspirationPage() {
 
   const filtered = list
     .filter((item) => {
-      if (category !== '全部' && item.category !== category) {
+      if (category === FAVORITES_TAB) {
+        if (!item.isFavorite) return false;
+      } else if (category !== '全部' && item.category !== category) {
         return false;
       }
       if (!query.trim()) return true;
@@ -145,10 +166,11 @@ export default function InspirationPage() {
         </div>
       </section>
 
-      {/* 动态分类标签 (支持自动换行分行显示) */}
+      {/* 动态分类标签 (支持自动换行分行显示；「我的收藏」使用金色强调样式) */}
       <div className="mb-4 flex flex-wrap gap-2">
         {categoryStats.map((c) => {
           const active = c.name === category;
+          const isFav = c.name === FAVORITES_TAB;
           return (
             <button
               key={c.name}
@@ -156,13 +178,18 @@ export default function InspirationPage() {
               onClick={() => setCategory(c.name)}
               className={cn(
                 'h-8 rounded-full border px-2.5 text-[13px] transition flex items-center gap-1.5 cursor-pointer sm:px-3 sm:text-sm',
-                active
+                isFav
+                  ? active
+                    ? 'border-amber-500 bg-gradient-to-r from-amber-400 to-amber-500 text-white font-semibold shadow-[0_2px_10px_rgba(245,158,11,.45)]'
+                    : 'border-amber-400/80 bg-amber-50 text-amber-700 font-semibold hover:border-amber-500 hover:bg-amber-100 hover:shadow-[0_2px_8px_rgba(245,158,11,.3)]'
+                  : active
                   ? 'border-neutral-950 bg-neutral-950 text-white font-medium shadow-sm'
                   : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-950'
               )}
             >
-              <span>{c.name}</span>
-              <span className={cn('text-[11px] sm:text-xs', active ? 'text-white/80 font-normal' : 'text-neutral-400')}>
+              {isFav && <Star size={13} className={cn('shrink-0', active ? 'fill-current' : 'fill-amber-400 text-amber-500')} />}
+              <span>{isFav ? '我的收藏' : c.name}</span>
+              <span className={cn('text-[11px] sm:text-xs', isFav ? (active ? 'text-white/90 font-normal' : 'text-amber-500') : active ? 'text-white/80 font-normal' : 'text-neutral-400')}>
                 {c.count}
               </span>
             </button>
@@ -171,7 +198,9 @@ export default function InspirationPage() {
       </div>
 
       <div className="mb-4 flex items-center justify-between text-xs text-neutral-400 sm:text-sm">
-        <span>当前分类包含 {filtered.length} 个灵感</span>
+        <span>
+          {category === FAVORITES_TAB ? `我的收藏共 ${filtered.length} 个灵感` : `当前分类包含 ${filtered.length} 个灵感`}
+        </span>
       </div>
 
       {/* 瀑布流卡片列表 */}
@@ -183,7 +212,10 @@ export default function InspirationPage() {
           <article
             key={item.id}
             onClick={() => handleUse(item)}
-            className="group relative mb-4 break-inside-avoid cursor-pointer overflow-hidden rounded-[16px] border border-neutral-200 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
+            className={cn(
+              'group relative mb-4 break-inside-avoid cursor-pointer overflow-hidden rounded-[16px] border bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md',
+              item.isFavorite ? 'border-amber-300 ring-1 ring-amber-300/60' : 'border-neutral-200'
+            )}
           >
             {item.cover ? (
               <div className="relative aspect-[4/5] w-full overflow-hidden bg-neutral-100">
@@ -195,10 +227,37 @@ export default function InspirationPage() {
                   className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
+                {/* 收藏星标（悬浮于封面右上角） */}
+                <button
+                  type="button"
+                  onClick={(e) => handleFavorite(e, item.id)}
+                  title={item.isFavorite ? '取消收藏' : '收藏'}
+                  className={cn(
+                    'absolute right-2 top-2 z-10 grid h-8 w-8 place-items-center rounded-full backdrop-blur-sm transition',
+                    item.isFavorite
+                      ? 'bg-amber-400 text-white shadow-[0_2px_10px_rgba(245,158,11,.55)] scale-105'
+                      : 'bg-black/45 text-white/85 hover:bg-amber-400 hover:scale-105 hover:shadow-[0_2px_10px_rgba(245,158,11,.55)]'
+                  )}
+                >
+                  <Star size={15} className={cn(item.isFavorite && 'fill-current')} />
+                </button>
               </div>
             ) : (
-              <div className="flex aspect-[4/5] w-full items-center justify-center bg-neutral-50 text-neutral-400">
+              <div className="relative flex aspect-[4/5] w-full items-center justify-center bg-neutral-50 text-neutral-400">
                 <WandSparkles size={32} />
+                <button
+                  type="button"
+                  onClick={(e) => handleFavorite(e, item.id)}
+                  title={item.isFavorite ? '取消收藏' : '收藏'}
+                  className={cn(
+                    'absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full backdrop-blur-sm transition',
+                    item.isFavorite
+                      ? 'bg-amber-400 text-white shadow-md'
+                      : 'bg-black/45 text-white/85 hover:bg-amber-400'
+                  )}
+                >
+                  <Star size={15} className={cn(item.isFavorite && 'fill-current')} />
+                </button>
               </div>
             )}
 
@@ -227,10 +286,18 @@ export default function InspirationPage() {
                   <span>{item.likes ?? 0}</span>
                 </button>
 
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-sky-600 group-hover:translate-x-0.5 transition">
-                  <WandSparkles size={12} />
-                  一键带入
-                </span>
+                <div className="flex items-center gap-3">
+                  {item.isFavorite && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+                      <Star size={12} className="fill-amber-400 text-amber-500" />
+                      已收藏
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-sky-600 group-hover:translate-x-0.5 transition">
+                    <WandSparkles size={12} />
+                    一键带入
+                  </span>
+                </div>
               </div>
             </div>
           </article>

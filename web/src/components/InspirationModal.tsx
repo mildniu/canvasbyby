@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Sparkles, X, Search } from 'lucide-react';
+import { Sparkles, X, Search, Star } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export interface InspirationItem {
@@ -10,6 +10,7 @@ export interface InspirationItem {
   tags?: string;
   cover?: string | null;
   likes?: number;
+  isFavorite?: boolean;
 }
 
 interface InspirationModalProps {
@@ -29,22 +30,27 @@ export function InspirationModal({
   const [category, setCategory] = useState('全部');
   const ref = useRef<HTMLDivElement>(null);
 
-  // 动态统计分类及数量
+  // 动态统计分类及数量（收藏单独统计）
   const categoryStats = useMemo(() => {
     const counts: Record<string, number> = {};
+    let favCount = 0;
     for (const item of templates) {
       const c = item.category || '其他';
       counts[c] = (counts[c] || 0) + 1;
+      if (item.isFavorite) favCount++;
     }
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     return [
       { name: '全部', count: templates.length },
+      { name: '__favorites__', count: favCount },
       ...sorted.map(([name, count]) => ({ name, count })),
     ];
   }, [templates]);
 
   const filtered = templates.filter((t) => {
-    if (category !== '全部' && t.category !== category) return false;
+    if (category === '__favorites__') {
+      if (!t.isFavorite) return false;
+    } else if (category !== '全部' && t.category !== category) return false;
     if (!query.trim()) return true;
     const q = query.toLowerCase();
     return `${t.title} ${t.prompt} ${t.category} ${t.tags ?? ''}`.toLowerCase().includes(q);
@@ -107,10 +113,11 @@ export function InspirationModal({
               />
             </div>
 
-            {/* 弹窗内的分类标签：分行换行显示，方便点击 */}
+            {/* 弹窗内的分类标签：分行换行显示，方便点击；「我的收藏」金色强调 */}
             <div className="mt-3 flex flex-wrap gap-1.5 max-h-36 overflow-y-auto no-scrollbar pt-0.5">
               {categoryStats.map((c) => {
                 const active = c.name === category;
+                const isFav = c.name === '__favorites__';
                 return (
                   <button
                     key={c.name}
@@ -118,13 +125,18 @@ export function InspirationModal({
                     onClick={() => setCategory(c.name)}
                     className={cn(
                       'h-7 rounded-full px-2.5 text-xs font-normal transition flex items-center gap-1 cursor-pointer',
-                      active
+                      isFav
+                        ? active
+                          ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white font-semibold shadow-[0_2px_8px_rgba(245,158,11,.45)]'
+                          : 'bg-amber-50 text-amber-700 font-semibold border border-amber-400/70 hover:bg-amber-100'
+                        : active
                         ? 'bg-neutral-950 text-white font-medium shadow-sm'
                         : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-950'
                     )}
                   >
-                    <span>{c.name}</span>
-                    <span className={cn('text-[10px]', active ? 'text-white/80' : 'text-neutral-400')}>
+                    {isFav && <Star size={11} className={cn('shrink-0', active ? 'fill-current' : 'fill-amber-400 text-amber-500')} />}
+                    <span>{isFav ? '我的收藏' : c.name}</span>
+                    <span className={cn('text-[10px]', isFav ? (active ? 'text-white/90' : 'text-amber-500') : active ? 'text-white/80' : 'text-neutral-400')}>
                       {c.count}
                     </span>
                   </button>
@@ -142,7 +154,10 @@ export function InspirationModal({
                   <div
                     key={item.id}
                     onClick={() => onPick(item)}
-                    className="group flex cursor-pointer gap-3 rounded-[14px] border border-neutral-100 bg-white p-2.5 transition hover:border-neutral-200 hover:bg-neutral-50"
+                    className={cn(
+                      'group flex cursor-pointer gap-3 rounded-[14px] border bg-white p-2.5 transition hover:bg-neutral-50',
+                      item.isFavorite ? 'border-amber-300/80 ring-1 ring-amber-300/50' : 'border-neutral-100 hover:border-neutral-200'
+                    )}
                   >
                     {item.cover ? (
                       <img
@@ -163,6 +178,12 @@ export function InspirationModal({
                         <span className="shrink-0 text-[10px] text-neutral-400">{item.category}</span>
                       </div>
                       <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-neutral-500">{item.prompt}</p>
+                      {item.isFavorite && (
+                        <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-amber-600">
+                          <Star size={10} className="fill-amber-400 text-amber-500" />
+                          已收藏
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}

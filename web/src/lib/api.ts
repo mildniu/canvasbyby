@@ -93,6 +93,8 @@ export const api = {
     request<Task & { userCredits?: number }>('/api/tasks/image', { method: 'POST', body: JSON.stringify(p) }),
   listTasks: (since = 0) => request<Task[]>(`/api/tasks?since=${since}`),
   deleteTask: (id: string) => request<{ ok: true }>(`/api/tasks/${id}`, { method: 'DELETE' }),
+  toggleFavorite: (id: number) =>
+    request<{ favorite: boolean }>(`/api/inspirations/${id}/favorite`, { method: 'POST' }),
   adminListTasks: (filters: { user?: string; status?: string; model?: string; q?: string } = {}) => {
     const search = new URLSearchParams();
     if (filters.user && filters.user !== 'all') search.set('user', filters.user);

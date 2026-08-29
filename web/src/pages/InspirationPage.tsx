@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { api } from '../lib/api';
+import { apiUrl, mediaUrl } from '../lib/config';
 import type { InspirationItem } from '../components/InspirationModal';
 import { InspirationDetail, parseBilingualPrompt } from '../components/InspirationDetail';
 
@@ -32,7 +33,7 @@ export default function InspirationPage() {
 
   const loadData = () => {
     setLoading(true);
-    fetch('/api/inspirations')
+    fetch(apiUrl('/api/inspirations'))
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
         setList(data);
@@ -65,7 +66,7 @@ export default function InspirationPage() {
     e.stopPropagation();
     if (likedIds.has(id)) return;
     try {
-      const res = await fetch(`/api/inspirations/${id}/like`, { method: 'POST' });
+      const res = await fetch(apiUrl(`/api/inspirations/${id}/like`), { method: 'POST' });
       if (res.ok) {
         setLikedIds((prev) => new Set(prev).add(id));
         setList((prev) =>
@@ -226,7 +227,7 @@ export default function InspirationPage() {
             {item.cover ? (
               <div className="relative aspect-[4/5] w-full overflow-hidden bg-neutral-100">
                 <img
-                  src={item.cover}
+                  src={mediaUrl(item.cover) ?? undefined}
                   alt={item.title}
                   loading="lazy"
                   decoding="async"

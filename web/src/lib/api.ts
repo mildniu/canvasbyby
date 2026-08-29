@@ -10,6 +10,10 @@ export interface User {
   created_at?: number;
 }
 
+import { apiUrl, IS_NATIVE_APP } from './config';
+
+export { apiUrl, mediaUrl, API_BASE_URL, IS_NATIVE_APP } from './config';
+
 export interface Settings {
   baseUrl: string;
   apiKey: string; // 打码
@@ -59,10 +63,11 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   if (rest.body != null && !finalHeaders['Content-Type']) {
     finalHeaders['Content-Type'] = 'application/json';
   }
-  const res = await fetch(url, {
+  const res = await fetch(apiUrl(url), {
     ...rest,
     headers: finalHeaders,
-    credentials: 'same-origin',
+    // 原生 App 与后端不同源，需要携带 Cookie；网页端保持同源行为
+    credentials: IS_NATIVE_APP ? 'include' : 'same-origin',
   });
   const body = await res.json().catch(() => ({}));
   if (res.status === 401) {

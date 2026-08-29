@@ -10,11 +10,31 @@
     "dev:server": "npm run dev -w server",
     "dev:web": "npm run dev -w web",
     "test": "npm run test -w server",
-    "build": "npm run build -w web && npm run build -w server"
+    "build": "npm run build -w web && npm run build -w server",
+    "build:web": "npm run build -w web",
+    "android:sync": "npm run build:web && npx cap sync android",
+    "android:debug": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "android:release": "npm run android:sync && cd android && ./gradlew assembleRelease"
   },
   "allowScripts": {
     "better-sqlite3@11.10.0": true,
     "esbuild@0.28.2": true,
     "esbuild@0.25.12": true
+  },
+  "devDependencies": {
+    "@capacitor/android": "^7.6.8",
+    "@capacitor/cli": "^7.6.8",
+    "@capacitor/core": "^7.6.8"
+  },
+  "dependencies": {
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/camera": "^7.0.5",
+    "@capacitor/clipboard": "^7.0.4",
+    "@capacitor/dialog": "^7.0.4",
+    "@capacitor/filesystem": "^7.1.8",
+    "@capacitor/haptics": "^7.0.5",
+    "@capacitor/share": "^7.0.4",
+    "@capacitor/splash-screen": "^7.0.5",
+    "@capacitor/status-bar": "^7.0.6"
   }
 }

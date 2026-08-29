@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Sparkles, X, Search, Star } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { mediaUrl } from '../lib/config';
 import { parseBilingualPrompt } from './InspirationDetail';
 
 export interface InspirationItem {
@@ -165,7 +166,7 @@ export function InspirationModal({
                   >
                     {item.cover ? (
                       <img
-                        src={item.cover}
+                        src={mediaUrl(item.cover) ?? undefined}
                         alt={item.title}
                         className="h-16 w-16 shrink-0 rounded-[10px] object-cover"
                         loading="lazy"

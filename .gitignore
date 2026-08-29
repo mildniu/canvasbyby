@@ -26,3 +26,14 @@ yarn-error.log*
 .DS_Store
 .trellis/
 /tmp/
+
+# Android / Capacitor
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/capacitor-cordova-android-plugins/build/
+*.keystore
+*.jks
+android/key.properties
+releases/

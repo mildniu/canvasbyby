@@ -141,6 +141,27 @@ export async function buildApp(opts: AppOptions) {
     }
   });
 
+  // ---- CORS：允许 Android App（Capacitor）与配置的网页域名跨源携带 Cookie 访问 ----
+  const corsOrigins = (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const allowedOrigins = [
+    'capacitor://localhost',
+    'http://localhost',
+    'https://localhost',
+    ...corsOrigins,
+  ];
+  await app.register(import('@fastify/cors'), {
+    origin: (origin, cb) => {
+      // 非浏览器/WebView 请求（无 Origin）直接放行
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(null, false);
+    },
+    credentials: true,
+  });
+
   // 登录限速（内存）
   let failCount = 0;
   let firstFailAt = 0;
@@ -231,7 +252,9 @@ export async function buildApp(opts: AppOptions) {
     const token = signToken(sessionData, opts.secretKey);
     reply.setCookie(COOKIE_NAME, token, {
       httpOnly: true,
-      sameSite: 'lax',
+      // App（Capacitor）跨源携带 Cookie 需要 none+secure；纯 HTTP 本地开发保持 lax
+      sameSite: process.env.COOKIE_SAMESITE === 'lax' ? 'lax' : 'none',
+      secure: process.env.COOKIE_SAMESITE !== 'lax',
       path: '/',
       maxAge: SESSION_TTL_MS / 1000,
     });
@@ -289,7 +312,8 @@ export async function buildApp(opts: AppOptions) {
     );
     reply.setCookie(COOKIE_NAME, token, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.COOKIE_SAMESITE === 'lax' ? 'lax' : 'none',
+      secure: process.env.COOKIE_SAMESITE !== 'lax',
       path: '/',
       maxAge: SESSION_TTL_MS / 1000,
     });

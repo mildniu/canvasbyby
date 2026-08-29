@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Download, Copy, Sparkles, AlertCircle, Wand2, RotateCcw, Clock } from 'lucide-react';
+import { mediaUrl } from '../lib/config';
+import { copyText } from '../lib/native';
 import type { Task } from '../lib/api';
 
 interface LightboxProps {
@@ -20,9 +22,16 @@ export function Lightbox({ preview, onClose, onReuse }: LightboxProps) {
     return () => window.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
-  const copyPrompt = () => {
+  // Android 返回键：打开详情时消费返回事件并关闭弹窗
+  useEffect(() => {
+    const handleBack = () => onClose();
+    window.addEventListener('app:back', handleBack);
+    return () => window.removeEventListener('app:back', handleBack);
+  }, [onClose]);
+
+  const copyPrompt = async () => {
     if (preview.prompt) {
-      navigator.clipboard.writeText(preview.prompt);
+      await copyText(preview.prompt);
     }
   };
 
@@ -68,7 +77,7 @@ export function Lightbox({ preview, onClose, onReuse }: LightboxProps) {
         <div className="grid min-h-[260px] place-items-center bg-neutral-950 p-3 sm:min-h-[360px] sm:p-6 lg:max-h-[92vh]">
           {isDone ? (
             <img
-              src={preview.resultUrl!}
+              src={mediaUrl(preview.resultUrl) ?? undefined}
               alt={preview.prompt}
               className="max-h-[56dvh] max-w-full rounded-[10px] object-contain shadow-lg lg:max-h-[86vh]"
             />
@@ -150,7 +159,7 @@ export function Lightbox({ preview, onClose, onReuse }: LightboxProps) {
 
             {isDone && preview.resultUrl && (
               <a
-                href={preview.resultUrl}
+                href={mediaUrl(preview.resultUrl) ?? '#'}
                 download={`image-${preview.id}.png`}
                 className="inline-flex items-center justify-center gap-1.5 w-full rounded-[12px] border border-neutral-200 bg-white py-2 text-xs font-medium text-neutral-700 transition hover:bg-neutral-50 cursor-pointer"
               >

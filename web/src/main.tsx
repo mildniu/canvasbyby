@@ -41,6 +41,34 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
 
 window.addEventListener('auth:expired', () => useApp.getState().setAuthed(false));
 
+// ---- Android 原生能力初始化（网页端自动跳过） ----
+async function initNative() {
+  if (!(window as any).Capacitor?.isNativePlatform?.()) return;
+  try {
+    const { App: CapApp } = await import('@capacitor/app');
+    const { StatusBar, Style } = await import('@capacitor/status-bar');
+    const { SplashScreen } = await import('@capacitor/splash-screen');
+
+    // 状态栏：白底黑字，与页面风格一致
+    await StatusBar.setStyle({ style: Style.Dark });
+    await StatusBar.setBackgroundColor({ color: '#FFFFFF' }).catch(() => {});
+
+    // Android 返回键：由页面通过自定义事件声明“已消费”（关闭弹窗等），未消费则走 WebView 历史
+    CapApp.addListener('backButton', () => {
+      const consumed = window.dispatchEvent(new CustomEvent('app:back', { cancelable: true, detail: { source: 'native' } }));
+      if (!consumed) {
+        CapApp.minimizeApp();
+      }
+    });
+
+    // 启动页在首屏渲染完成后隐藏
+    setTimeout(() => SplashScreen.hide().catch(() => {}), 600);
+  } catch {
+    /* 原生环境异常时静默降级 */
+  }
+}
+initNative();
+
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   {

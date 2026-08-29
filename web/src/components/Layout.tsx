@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Image as ImageIcon,
@@ -14,6 +14,7 @@ import {
   Coins,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { apiUrl } from '../lib/config';
 import { useApp } from '../stores/app';
 
 export default function Layout() {
@@ -22,8 +23,18 @@ export default function Layout() {
   const user = useApp((s) => s.user);
   const setAuthed = useApp((s) => s.setAuthed);
 
+  // Android 返回键：移动抽屉打开时优先关闭抽屉（消费返回事件）
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleBack = () => {
+      setMobileMenuOpen(false);
+    };
+    window.addEventListener('app:back', handleBack);
+    return () => window.removeEventListener('app:back', handleBack);
+  }, [mobileMenuOpen]);
+
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    await fetch(apiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include' }).catch(() => {});
     setAuthed(false);
     nav('/login');
   };

@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">老牛创意生成</string>
-    <string name="title_activity_main">老牛创意生成</string>
-    <string name="package_name">com.mildniu.canvasbyby</string>
-    <string name="custom_url_scheme">com.mildniu.canvasbyby</string>
-</resources>

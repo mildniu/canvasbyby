@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Image as ImageIcon,
@@ -23,16 +23,6 @@ export default function Layout() {
   const user = useApp((s) => s.user);
   const setAuthed = useApp((s) => s.setAuthed);
 
-  // Android 返回键：移动抽屉打开时优先关闭抽屉（消费返回事件）
-  useEffect(() => {
-    if (!mobileMenuOpen) return;
-    const handleBack = () => {
-      setMobileMenuOpen(false);
-    };
-    window.addEventListener('app:back', handleBack);
-    return () => window.removeEventListener('app:back', handleBack);
-  }, [mobileMenuOpen]);
-
   const handleLogout = async () => {
     await fetch(apiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include' }).catch(() => {});
     setAuthed(false);
@@ -56,9 +46,9 @@ export default function Layout() {
   ];
 
   return (
-    <div className="min-h-full bg-white text-neutral-950 flex flex-col" style={{ paddingTop: 'var(--app-safe-top, 0px)', paddingBottom: 'var(--app-safe-bottom, 0px)' }}>
+    <div className="min-h-full bg-white text-neutral-950 flex flex-col">
       {/* 桌面端左侧 Rail 窄侧边栏 (w-14 = 56px) */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-14 border-r border-neutral-200 bg-white lg:flex lg:flex-col lg:items-center" style={{ top: 'var(--app-safe-top, 0px)', bottom: 'var(--app-safe-bottom, 0px)' }}>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-14 border-r border-neutral-200 bg-white lg:flex lg:flex-col lg:items-center">
         <button
           type="button"
           onClick={() => nav('/create/image')}
@@ -229,7 +219,7 @@ export default function Layout() {
             className="fixed inset-0 z-40 bg-black/30 lg:hidden"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 z-50 flex w-[min(82vw,320px)] flex-col border-r border-neutral-200 bg-white p-4 shadow-2xl lg:hidden" style={{ top: 'var(--app-safe-top, 0px)', bottom: 'var(--app-safe-bottom, 0px)' }}>
+          <div className="fixed inset-y-0 left-0 z-50 flex w-[min(82vw,320px)] flex-col border-r border-neutral-200 bg-white p-4 shadow-2xl lg:hidden">
             <div className="flex h-12 items-center justify-between border-b border-neutral-100 pb-2">
               <div className="flex items-center gap-2">
                 <img src="/logo.png" alt="老牛" className="h-7 w-7 rounded-lg" />
@@ -286,16 +276,13 @@ export default function Layout() {
         </>
       )}
 
-      {/* 主视图区域：移动端为固定底栏预留空间（底栏高度约 56px + 安全区） */}
-      <main className="flex-1 lg:ml-14 pb-16 lg:pb-0" style={{ paddingBottom: 'calc(4.5rem + var(--app-safe-bottom, 0px))' }}>
+      {/* 主视图区域 */}
+      <main className="flex-1 lg:ml-14 pb-16 lg:pb-0">
         <Outlet />
       </main>
 
-      {/* 移动端底部 Tab 栏：应用原生注入的底部安全区（--sab），确保固定在导航栏之上 */}
-      <nav
-        className="lg:hidden fixed bottom-0 inset-x-0 z-30 flex border-t border-neutral-200 bg-white/95 backdrop-blur"
-        style={{ bottom: 'var(--app-safe-bottom, 0px)', paddingBottom: '4px' }}
-      >
+      {/* 移动端底部 Tab 栏 */}
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 flex border-t border-neutral-200 bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
         {[...navMain, ...navBottom].map((item) => {
           const Icon = item.icon;
           return (

@@ -20,21 +20,6 @@
   field-sizing: content;
 }
 
-/* Android 原生 App 安全区：--sat/--sab 由 MainActivity 注入（状态栏/导航栏高度）。
-   env(safe-area-inset-*) 在 WebView 中常为 0，故取两者较大值。 */
-:root {
-  --app-safe-top: max(env(safe-area-inset-top, 0px), var(--sat, 0px));
-  --app-safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--sab, 0px));
-}
-
-/* 原生环境下为整页内容留出系统栏安全区（网页端变量为 0，不影响布局） */
-@supports (top: max(1px, 1px)) {
-  #root {
-    padding-top: var(--app-safe-top, 0px);
-    padding-bottom: var(--app-safe-bottom, 0px);
-  }
-}
-
 /* 隐藏滚动条但保留滚动 */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

@@ -9,13 +9,11 @@ import {
   Sparkles,
   Mic,
   X,
-  Camera,
 } from 'lucide-react';
 import { useApp } from '../stores/app';
 import { cn } from '../lib/utils';
 import { api, type Task } from '../lib/api';
 import { apiUrl, mediaUrl } from '../lib/config';
-import { isNative, pickMultipleFromGallery, takePhoto } from '../lib/native';
 import { PillSelect, type Option } from '../components/PillSelect';
 import { InspirationModal, type InspirationItem } from '../components/InspirationModal';
 import { parseBilingualPrompt } from '../components/InspirationDetail';
@@ -196,31 +194,6 @@ export default function CreatePage() {
     setRefs((prev) => [...prev, ...added].slice(0, MAX_REFS));
   };
 
-  const isNativePlatform = isNative();
-
-  // 原生 App：相册多选参考图
-  const handleNativeGalleryPick = async () => {
-    const remain = MAX_REFS - refs.length;
-    if (remain <= 0) return;
-    const dataUrls = await pickMultipleFromGallery(remain);
-    if (!dataUrls.length) return;
-    setRefs((prev) => [
-      ...prev,
-      ...dataUrls.map((d, i) => ({ id: `ref-${Date.now()}-${i}`, name: `相册图片 ${i + 1}`, dataUrl: d })),
-    ].slice(0, MAX_REFS));
-  };
-
-  // 原生 App：拍照作为参考图
-  const handleNativeCamera = async () => {
-    if (refs.length >= MAX_REFS) return;
-    const { dataUrl, canceled } = await takePhoto();
-    if (canceled || !dataUrl) return;
-    setRefs((prev) => [
-      ...prev,
-      { id: `ref-${Date.now()}-cam`, name: '拍照图片', dataUrl },
-    ].slice(0, MAX_REFS));
-  };
-
   const handleGenerate = async () => {
     const rawPrompt = prompt.trim();
     if (!rawPrompt || loading) return;
@@ -377,36 +350,15 @@ export default function CreatePage() {
                   }}
                 />
 
-                {/* 上传参考图：原生 App 提供相册多选与拍照；网页端使用文件选择 */}
-                {isNativePlatform ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleNativeGalleryPick}
-                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-neutral-600 hover:bg-neutral-100 transition cursor-pointer"
-                      title={`从相册选择参考图（最多 ${MAX_REFS} 张）`}
-                    >
-                      <Upload size={18} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleNativeCamera}
-                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-neutral-600 hover:bg-neutral-100 transition cursor-pointer"
-                      title="拍照作为参考图"
-                    >
-                      <Camera size={18} />
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-neutral-600 hover:bg-neutral-100 transition cursor-pointer"
-                    title={`上传参考图（支持多图，最多 ${MAX_REFS} 张）`}
-                  >
-                    <Upload size={18} />
-                  </button>
-                )}
+                {/* 上传参考图按钮 */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-neutral-600 hover:bg-neutral-100 transition cursor-pointer"
+                  title={`上传参考图（支持多图，最多 ${MAX_REFS} 张）`}
+                >
+                  <Upload size={18} />
+                </button>
 
                 {/* 模型选择 (从中转站动态拉取的可用模型) */}
                 <PillSelect

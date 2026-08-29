@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Download, Trash2, Maximize2, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { apiUrl, mediaUrl } from '../lib/config';
-import { saveImageToGallery } from '../lib/native';
 import type { Task } from '../lib/api';
 
 interface TaskCardProps {
@@ -23,20 +22,16 @@ export function TaskCard({ task, onOpen, onDelete }: TaskCardProps) {
     if (!task.resultUrl || downloading) return;
     setDownloading(true);
     try {
-      // 原生 App：保存到系统相册；网页端：浏览器下载
-      const ok = await saveImageToGallery(apiUrl(task.resultUrl), `image-${task.id}.png`);
-      if (!ok) {
-        const res = await fetch(apiUrl(task.resultUrl), { credentials: 'include' });
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `image-${task.id}.png`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      }
+      const res = await fetch(apiUrl(task.resultUrl), { credentials: 'include' });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `image-${task.id}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     } catch {
       alert('下载失败');
     } finally {

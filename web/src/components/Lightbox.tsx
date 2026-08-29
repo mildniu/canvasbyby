@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Download, Copy, Sparkles, AlertCircle, Wand2, RotateCcw, Clock } from 'lucide-react';
 import { mediaUrl } from '../lib/config';
-import { copyText } from '../lib/native';
 import type { Task } from '../lib/api';
 
 interface LightboxProps {
@@ -22,16 +21,9 @@ export function Lightbox({ preview, onClose, onReuse }: LightboxProps) {
     return () => window.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
-  // Android 返回键：打开详情时消费返回事件并关闭弹窗
-  useEffect(() => {
-    const handleBack = () => onClose();
-    window.addEventListener('app:back', handleBack);
-    return () => window.removeEventListener('app:back', handleBack);
-  }, [onClose]);
-
-  const copyPrompt = async () => {
+  const copyPrompt = () => {
     if (preview.prompt) {
-      await copyText(preview.prompt);
+      navigator.clipboard.writeText(preview.prompt);
     }
   };
 

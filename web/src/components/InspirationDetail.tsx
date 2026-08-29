@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { X, Copy, Languages, Wand2, Star, Heart } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { mediaUrl } from '../lib/config';
-import { copyText } from '../lib/native';
 import type { InspirationItem } from './InspirationModal';
 
 interface InspirationDetailProps {
@@ -41,16 +40,9 @@ export function InspirationDetail({
     return () => window.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
-  // Android 返回键：打开详情时消费返回事件并关闭弹窗
-  useEffect(() => {
-    const handleBack = () => onClose();
-    window.addEventListener('app:back', handleBack);
-    return () => window.removeEventListener('app:back', handleBack);
-  }, [onClose]);
-
   const { zh, en } = parseBilingualPrompt(item.prompt);
-  const copy = async (text: string) => {
-    if (text) await copyText(text);
+  const copy = (text: string) => {
+    if (text) navigator.clipboard.writeText(text);
   };
 
   return (

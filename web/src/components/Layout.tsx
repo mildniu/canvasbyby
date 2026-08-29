@@ -56,9 +56,9 @@ export default function Layout() {
   ];
 
   return (
-    <div className="min-h-full bg-white text-neutral-950 flex flex-col">
+    <div className="min-h-full bg-white text-neutral-950 flex flex-col" style={{ paddingTop: 'var(--app-safe-top, 0px)', paddingBottom: 'var(--app-safe-bottom, 0px)' }}>
       {/* 桌面端左侧 Rail 窄侧边栏 (w-14 = 56px) */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-14 border-r border-neutral-200 bg-white lg:flex lg:flex-col lg:items-center">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-14 border-r border-neutral-200 bg-white lg:flex lg:flex-col lg:items-center" style={{ top: 'var(--app-safe-top, 0px)', bottom: 'var(--app-safe-bottom, 0px)' }}>
         <button
           type="button"
           onClick={() => nav('/create/image')}
@@ -229,7 +229,7 @@ export default function Layout() {
             className="fixed inset-0 z-40 bg-black/30 lg:hidden"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 z-50 flex w-[min(82vw,320px)] flex-col border-r border-neutral-200 bg-white p-4 shadow-2xl lg:hidden">
+          <div className="fixed inset-y-0 left-0 z-50 flex w-[min(82vw,320px)] flex-col border-r border-neutral-200 bg-white p-4 shadow-2xl lg:hidden" style={{ top: 'var(--app-safe-top, 0px)', bottom: 'var(--app-safe-bottom, 0px)' }}>
             <div className="flex h-12 items-center justify-between border-b border-neutral-100 pb-2">
               <div className="flex items-center gap-2">
                 <img src="/logo.png" alt="老牛" className="h-7 w-7 rounded-lg" />

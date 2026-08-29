@@ -33,7 +33,7 @@ export default function InspirationPage() {
 
   const loadData = () => {
     setLoading(true);
-    fetch(apiUrl('/api/inspirations'))
+    fetch(apiUrl('/api/inspirations'), { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
         setList(data);
@@ -66,7 +66,7 @@ export default function InspirationPage() {
     e.stopPropagation();
     if (likedIds.has(id)) return;
     try {
-      const res = await fetch(apiUrl(`/api/inspirations/${id}/like`), { method: 'POST' });
+      const res = await fetch(apiUrl(`/api/inspirations/${id}/like`), { method: 'POST', credentials: 'include' });
       if (res.ok) {
         setLikedIds((prev) => new Set(prev).add(id));
         setList((prev) =>

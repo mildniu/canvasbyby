@@ -286,13 +286,16 @@ export default function Layout() {
         </>
       )}
 
-      {/* 主视图区域 */}
-      <main className="flex-1 lg:ml-14 pb-16 lg:pb-0">
+      {/* 主视图区域：移动端为固定底栏预留空间（底栏高度约 56px + 安全区） */}
+      <main className="flex-1 lg:ml-14 pb-16 lg:pb-0" style={{ paddingBottom: 'calc(4.5rem + var(--app-safe-bottom, 0px))' }}>
         <Outlet />
       </main>
 
-      {/* 移动端底部 Tab 栏 */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 flex border-t border-neutral-200 bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
+      {/* 移动端底部 Tab 栏：应用原生注入的底部安全区（--sab），确保固定在导航栏之上 */}
+      <nav
+        className="lg:hidden fixed bottom-0 inset-x-0 z-30 flex border-t border-neutral-200 bg-white/95 backdrop-blur"
+        style={{ bottom: 'var(--app-safe-bottom, 0px)', paddingBottom: '4px' }}
+      >
         {[...navMain, ...navBottom].map((item) => {
           const Icon = item.icon;
           return (

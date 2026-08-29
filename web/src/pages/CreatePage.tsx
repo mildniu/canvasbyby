@@ -136,7 +136,7 @@ export default function CreatePage() {
 
   // 加载灵感模板与历史任务
   useEffect(() => {
-    fetch(apiUrl('/api/inspirations'))
+    fetch(apiUrl('/api/inspirations'), { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : []))
       .then(setTemplates)
       .catch(() => {});

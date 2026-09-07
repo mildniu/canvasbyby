@@ -86,7 +86,37 @@ const RATIO_SIZE: Record<string, string> = {
   '9:21': '768x1792',
 };
 
-export function ratioToSize(ratio: string): string {
+/** 按参考图原始宽高计算生成尺寸：保持比例，长边对齐到 1024/1536/1792 档位（边长为 64 的倍数） */
+function sizeFromOriginal(width: number, height: number): string {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return RATIO_SIZE['1:1'];
+  }
+  const long = Math.max(width, height);
+  const LONG_TARGETS = [1024, 1536, 1792];
+  // 取不超过原始长边太多的档位（放大不超过 1.5 倍，避免小图被过度放大）
+  let target = LONG_TARGETS[LONG_TARGETS.length - 1];
+  for (const t of LONG_TARGETS) {
+    if (long <= t * 1.5) {
+      target = t;
+      break;
+    }
+  }
+  const scale = target / long;
+  const round64 = (v: number) => Math.max(64, Math.round((v * scale) / 64) * 64);
+  let w = round64(width);
+  let h = round64(height);
+  // 防止取整后某一边过小
+  if (Math.min(w, h) < 256) {
+    w = width >= height ? target : Math.round((width / height) * 1024);
+    h = width >= height ? Math.round((height / width) * 1024) : target;
+  }
+  return `${w}x${h}`;
+}
+
+export function ratioToSize(ratio: string, originalDims?: { width: number; height: number }): string {
+  if (ratio === 'original' && originalDims) {
+    return sizeFromOriginal(originalDims.width, originalDims.height);
+  }
   return RATIO_SIZE[ratio] ?? RATIO_SIZE['1:1'];
 }
 
@@ -97,6 +127,8 @@ export interface GenerateImageOpts {
   ratio: string;
   model: string;
   refImagesB64?: string[];
+  /** ratio 为 'original' 时：参考图首图的真实宽高 */
+  originalDims?: { width: number; height: number };
 }
 
 // ============ 借鉴 iLab：协议适配器注册表架构 ============
@@ -159,7 +191,7 @@ const siliconflowAdapter: ProtocolAdapter = {
           model,
           prompt: opts.prompt,
           image: `data:image/jpeg;base64,${opts.refImagesB64![0]}`,
-          image_size: ratioToSize(opts.ratio),
+          image_size: ratioToSize(opts.ratio, opts.originalDims),
         }),
       },
     };
@@ -175,7 +207,7 @@ const openaiEditsAdapter: ProtocolAdapter = {
     const fd = new FormData();
     fd.append('model', model);
     fd.append('prompt', opts.prompt);
-    fd.append('size', ratioToSize(opts.ratio));
+    fd.append('size', ratioToSize(opts.ratio, opts.originalDims));
     for (const [i, b64] of (opts.refImagesB64 ?? []).entries()) {
       const bin = Buffer.from(b64, 'base64');
       fd.append('image', new Blob([new Uint8Array(bin)], { type: 'image/jpeg' }), `ref-${i}.jpg`);
@@ -209,7 +241,7 @@ const openaiGenerationsAdapter: ProtocolAdapter = {
         body: JSON.stringify({
           model,
           prompt: opts.prompt,
-          size: ratioToSize(opts.ratio),
+          size: ratioToSize(opts.ratio, opts.originalDims),
           n: 1,
         }),
       },
@@ -462,7 +494,7 @@ export async function generateImage(
   log('UPSTREAM', `🚀 请求上游中转站: ${req.url} [${req.protocol}]`, {
     model: finalModel,
     ratio: opts.ratio,
-    size: ratioToSize(opts.ratio),
+    size: ratioToSize(opts.ratio, opts.originalDims),
     refImagesCount: opts.refImagesB64?.length ?? 0,
     ratioInjected: !adapter.supportsSizeParam,
     prompt: effectivePrompt.length > 80 ? `${effectivePrompt.slice(0, 80)}...` : effectivePrompt,

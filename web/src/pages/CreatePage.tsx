@@ -32,6 +32,7 @@ const FALLBACK_MODELS: Option[] = [
 
 // 常用画幅比例：覆盖社交头像、短视频、横屏壁纸、海报、电影宽幅等主流场景
 const RATIOS = [
+  { value: 'original', label: '原图比例' },
   { value: '1:1', label: '1:1 方图' },
   { value: '4:3', label: '4:3 横屏' },
   { value: '3:4', label: '3:4 竖屏' },
@@ -70,6 +71,16 @@ async function compressImage(file: File): Promise<string> {
   return canvas.toDataURL('image/jpeg', 0.9);
 }
 
+/** 读取 dataUrl 图片的宽高 */
+function getImageDims(dataUrl: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
 export default function CreatePage() {
   const user = useApp((s) => s.user);
   const setCredits = useApp((s) => s.setCredits);
@@ -82,6 +93,8 @@ export default function CreatePage() {
   const [resolutionOptions, setResolutionOptions] = useState<Option[]>(RESOLUTIONS);
   const [count, setCount] = useState('1');
   const [refs, setRefs] = useState<{ id: string; name: string; dataUrl: string }[]>([]);
+  // 「原图比例」：记录第一张参考图的真实宽高，生成时传给后端计算尺寸
+  const [originalDims, setOriginalDims] = useState<{ width: number; height: number } | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [templates, setTemplates] = useState<InspirationItem[]>([]);
   const [inspModalOpen, setInspModalOpen] = useState(false);
@@ -180,16 +193,26 @@ export default function CreatePage() {
     if (!files) return;
     const remain = MAX_REFS - refs.length;
     const list = Array.from(files).slice(0, remain);
-    const added: typeof refs = [];
+    const added: { id: string; name: string; dataUrl: string }[] = [];
+    let firstDims: { width: number; height: number } | null = null;
     for (let i = 0; i < list.length; i++) {
       const f = list[i];
       if (!f.type.startsWith('image/')) continue;
       try {
         const dataUrl = await compressImage(f);
         added.push({ id: `ref-${Date.now()}-${i}`, name: f.name, dataUrl });
+        // 记录首图（本次批量中第一张，或之前没有任何参考图时）的宽高
+        if (!firstDims && (refs.length === 0 || originalDims === null)) {
+          firstDims = await getImageDims(dataUrl);
+        }
       } catch (err) {
         console.error('读取图片失败', err);
       }
+    }
+    if (firstDims) {
+      setOriginalDims(firstDims);
+      // 自动切换到「原图比例」
+      setRatio('original');
     }
     setRefs((prev) => [...prev, ...added].slice(0, MAX_REFS));
   };
@@ -205,6 +228,15 @@ export default function CreatePage() {
     const currentModel = model;
     const currentRatio = ratio;
     const currentRefs = refs.map((r) => r.dataUrl);
+    // 「原图比例」：带上首图宽高，后端据此计算生成尺寸
+    const dimsPayload =
+      currentRatio === 'original' && originalDims
+        ? { width: originalDims.width, height: originalDims.height }
+        : undefined;
+    const displayRatio =
+      currentRatio === 'original' && originalDims
+        ? `${originalDims.width}:${originalDims.height}`
+        : currentRatio;
     const startTime = Date.now();
 
     // 1. 初始化右侧微型窗口为「实时生成中」
@@ -212,7 +244,7 @@ export default function CreatePage() {
       id: `temp-${startTime}`,
       prompt: rawPrompt,
       model: currentModel,
-      ratio: currentRatio,
+      ratio: displayRatio,
       startTime,
       elapsedMs: 0,
       status: 'running',
@@ -222,6 +254,7 @@ export default function CreatePage() {
     // 2. 核心：立即清空输入框与参考图，光标重新就绪，方便进行下一次创作
     setPrompt('');
     setRefs([]);
+    setOriginalDims(null);
     requestAnimationFrame(() => textareaRef.current?.focus());
 
     // 3. 异步请求后端
@@ -231,6 +264,7 @@ export default function CreatePage() {
         ratio: currentRatio,
         model: currentModel,
         refAssets: currentRefs,
+        ...(dimsPayload ? { width: dimsPayload.width, height: dimsPayload.height } : {}),
       });
 
       const elapsedMs = Date.now() - startTime;
@@ -239,7 +273,7 @@ export default function CreatePage() {
           id: task.id,
           prompt: rawPrompt,
           model: currentModel,
-          ratio: currentRatio,
+          ratio: displayRatio,
           startTime,
           elapsedMs,
           status: 'done',
@@ -250,7 +284,7 @@ export default function CreatePage() {
           id: task.id,
           prompt: rawPrompt,
           model: currentModel,
-          ratio: currentRatio,
+          ratio: displayRatio,
           startTime,
           elapsedMs,
           status: 'failed',
@@ -267,7 +301,7 @@ export default function CreatePage() {
         id: `err-${startTime}`,
         prompt: rawPrompt,
         model: currentModel,
-        ratio: currentRatio,
+        ratio: displayRatio,
         startTime,
         elapsedMs: Date.now() - startTime,
         status: 'failed',
@@ -468,9 +502,19 @@ export default function CreatePage() {
                       </span>
                       <button
                         type="button"
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          setRefs((arr) => arr.filter((x) => x.id !== r.id));
+                          const remaining = refs.filter((x) => x.id !== r.id);
+                          setRefs(remaining);
+                          // 移除后若已无参考图，清空原图比例；否则以新的首图重新测量
+                          if (remaining.length === 0) {
+                            setOriginalDims(null);
+                            if (ratio === 'original') setRatio('1:1');
+                          } else {
+                            try {
+                              setOriginalDims(await getImageDims(remaining[0].dataUrl));
+                            } catch { /* 保持原值 */ }
+                          }
                         }}
                         className="absolute right-1 top-1 z-10 grid h-5 w-5 place-items-center rounded-full bg-black/70 text-white opacity-0 transition group-hover:opacity-100"
                         title="移除"

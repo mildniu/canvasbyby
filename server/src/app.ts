@@ -679,13 +679,24 @@ export async function buildApp(opts: AppOptions) {
       refAssets = [],
       model = 'gpt-image-2',
       resolution = '1K',
+      width,
+      height,
     } = (req.body ?? {}) as {
       prompt?: string;
       ratio?: string;
       refAssets?: string[];
       model?: string;
       resolution?: string;
+      width?: number;
+      height?: number;
     };
+
+    // 「原图比例」：需要参考图首图宽高，缺失时回退 1:1
+    const originalDims =
+      ratio === 'original' && Number.isFinite(width) && Number.isFinite(height) && width! > 0 && height! > 0
+        ? { width: width!, height: height! }
+        : undefined;
+    const effectiveRatio = ratio === 'original' && !originalDims ? '1:1' : ratio;
 
     const isAdmin = req.user!.role === 'admin';
     const isCustomGateway = !!cfg.isCustom;
@@ -752,10 +763,10 @@ export async function buildApp(opts: AppOptions) {
     const insert = db.prepare(
       'INSERT INTO tasks(id,user_id,kind,status,prompt,params_json,credits_cost,created_at) VALUES(?,?,?,?,?,?,?,?)'
     );
-    insert.run(id, req.user!.userId, 'image', 'running', prompt, JSON.stringify({ ratio, model, refCount: refAssets.length }), creditCost, now);
+    insert.run(id, req.user!.userId, 'image', 'running', prompt, JSON.stringify({ ratio: effectiveRatio, model, refCount: refAssets.length }), creditCost, now);
 
     try {
-      const result = await runImageTask(cfg, prompt, ratio, model, refAssets);
+      const result = await runImageTask(cfg, prompt, effectiveRatio, model, refAssets, originalDims);
       const filename = `${id}${result.ext}`;
       const path = join(mediaDir, filename);
       // 原子写入主图（防崩溃半截文件）
@@ -814,9 +825,10 @@ export async function buildApp(opts: AppOptions) {
     ratio: string,
     model: string,
     refAssets: string[],
+    originalDims?: { width: number; height: number },
   ): Promise<{ buffer: Buffer; ext: string }> {
     const refs = refAssets.map((a) => (a.startsWith('data:') ? a.split(',')[1] ?? '' : a)).filter(Boolean);
-    const result = await generateImage(cfg, { prompt, ratio, model, refImagesB64: refs }, opts.upstreamFetch ?? fetch);
+    const result = await generateImage(cfg, { prompt, ratio, model, refImagesB64: refs, originalDims }, opts.upstreamFetch ?? fetch);
     if (result.b64) {
       return { buffer: Buffer.from(result.b64, 'base64'), ext: '.png' };
     }

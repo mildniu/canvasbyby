@@ -96,7 +96,15 @@ export const api = {
 
   getModels: () => request<ModelsResponse>('/api/models'),
 
-  createImage: (p: { prompt: string; ratio: string; model: string; refAssets?: string[] }) =>
+  createImage: (p: {
+    prompt: string;
+    ratio: string;
+    model: string;
+    refAssets?: string[];
+    /** ratio 为 'original' 时携带：参考图首图的真实宽高 */
+    width?: number;
+    height?: number;
+  }) =>
     request<Task & { userCredits?: number }>('/api/tasks/image', { method: 'POST', body: JSON.stringify(p) }),
   listTasks: (since = 0) => request<Task[]>(`/api/tasks?since=${since}`),
   deleteTask: (id: string) => request<{ ok: true }>(`/api/tasks/${id}`, { method: 'DELETE' }),

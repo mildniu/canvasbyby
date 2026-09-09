@@ -2,9 +2,10 @@
  * AI 生图模型积分定价体系
  * 按照用户指定规则计费：
  *  - Qwen 系列全部 1 积分 / 次（如 Qwen-Image、Qwen-Image-Edit-2509、Qwen2.5 等）
- *  - GPT 系列全部 2 积分 / 次（如 gpt-image-2、gpt-image-1.5、dall-e-3 等）
+ *  - GPT 系列标准档 2 积分 / 次（如 gpt-image-2、gpt-image-1.5、dall-e-3 等）
+ *  - GPT 特殊档：gpt-image-2-4k 8 积分、gpt-image-2.5-flare 4 积分、gpt-image-2.5-sunburst 6 积分
  *  - Gemini 系列全部 2 积分 / 次（如 gemini-3.1-flash-image、gemini-2.5-flash 等）
- *  - Grok 系列全部 2 积分 / 次（如 grok-imagine-image、grok-imagine-image-quality 等）
+ *  - Grok 系列全部 6 积分 / 次（如 grok-imagine-image、grok-imagine-image-quality 等）
  *  - 默认其他模型：2 积分 / 次
  */
 
@@ -15,17 +16,23 @@ export interface ModelCreditRule {
 }
 
 export const MODEL_PRICING_RULES: ModelCreditRule[] = [
-  // 4 积分档位：高端旗舰模型（先于通用 GPT 规则匹配）
+  // 8 积分档位：GPT Image 2 4K 高清（先于通用 GPT 规则匹配）
+  {
+    pattern: /gpt-image-2-4k/i,
+    cost: 8,
+    desc: 'GPT Image 2 4K 高清生图 (8积分)',
+  },
+  // 6 积分档位：GPT Image 2.5 Sunburst 旗舰
   {
     pattern: /gpt-image-2\.5-sunburst/i,
-    cost: 4,
-    desc: 'GPT Image 2.5 Sunburst 旗舰生图 (4积分)',
+    cost: 6,
+    desc: 'GPT Image 2.5 Sunburst 旗舰生图 (6积分)',
   },
-  // 2 积分档位（特殊）：GPT Image 2.5 Flare
+  // 4 积分档位：GPT Image 2.5 Flare
   {
     pattern: /gpt-image-2\.5-flare/i,
-    cost: 2,
-    desc: 'GPT Image 2.5 Flare 生图 (2积分)',
+    cost: 4,
+    desc: 'GPT Image 2.5 Flare 生图 (4积分)',
   },
   // 1 积分档位：Qwen 系列
   {
@@ -33,7 +40,7 @@ export const MODEL_PRICING_RULES: ModelCreditRule[] = [
     cost: 1,
     desc: 'Qwen 系列生图/编辑 (1积分)',
   },
-  // 2 积分档位：GPT 系列
+  // 2 积分档位：GPT 系列（标准档）
   {
     pattern: /gpt|dall/i,
     cost: 2,
@@ -45,11 +52,11 @@ export const MODEL_PRICING_RULES: ModelCreditRule[] = [
     cost: 2,
     desc: 'Gemini 系列生图 (2积分)',
   },
-  // 2 积分档位：Grok 系列
+  // 6 积分档位：Grok 系列
   {
     pattern: /grok/i,
-    cost: 2,
-    desc: 'Grok 系列生图 (2积分)',
+    cost: 6,
+    desc: 'Grok 系列生图 (6积分)',
   },
 ];
 

@@ -9,30 +9,31 @@ function getCookie(res: any): string {
 }
 
 describe('积分系统 (Credits System)', () => {
-  it('模型能力差异化定价规则正确 (Qwen=1分, GPT/Gemini/Grok=2分)', () => {
+  it('模型能力差异化定价规则正确 (Qwen=1分, GPT/Gemini标准=2分, Grok=6分)', () => {
     // Qwen 系列 1 积分
     expect(getModelCreditCost('Qwen-Image')).toBe(1);
     expect(getModelCreditCost('Qwen-Image-Edit-2509')).toBe(1);
     expect(getModelCreditCost('Qwen/Qwen-Image-Edit')).toBe(1);
     expect(getModelCreditCost('qwen-image-plus')).toBe(1);
 
-    // GPT 系列 2 积分
+    // GPT 系列标准档 2 积分
     expect(getModelCreditCost('gpt-image-2')).toBe(2);
     expect(getModelCreditCost('gpt-image-1.5')).toBe(2);
     expect(getModelCreditCost('dall-e-3')).toBe(2);
 
-    // GPT Image 2.5 特殊档位
-    expect(getModelCreditCost('gpt-image-2.5-flare')).toBe(2);
-    expect(getModelCreditCost('gpt-image-2.5-sunburst')).toBe(4);
+    // GPT 特殊档位
+    expect(getModelCreditCost('gpt-image-2-4k')).toBe(8);
+    expect(getModelCreditCost('gpt-image-2.5-flare')).toBe(4);
+    expect(getModelCreditCost('gpt-image-2.5-sunburst')).toBe(6);
 
     // Gemini 系列 2 积分
     expect(getModelCreditCost('gemini-3.1-flash-image')).toBe(2);
     expect(getModelCreditCost('gemini-2.5-flash-image')).toBe(2);
     expect(getModelCreditCost('imagen-3')).toBe(2);
 
-    // Grok 系列 2 积分
-    expect(getModelCreditCost('grok-imagine-image')).toBe(2);
-    expect(getModelCreditCost('grok-imagine-image-quality')).toBe(2);
+    // Grok 系列 6 积分
+    expect(getModelCreditCost('grok-imagine-image')).toBe(6);
+    expect(getModelCreditCost('grok-imagine-image-quality')).toBe(6);
 
     // 默认兜底 2 积分
     expect(getModelCreditCost('some-unknown-image-model')).toBe(2);

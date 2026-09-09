@@ -26,10 +26,11 @@ const FALLBACK_MODELS: Option[] = [
   { value: 'Qwen-Image', label: 'Qwen-Image (通义万相)', cost: 1 },
   { value: 'Qwen-Image-Edit-2509', label: 'Qwen-Image-Edit-2509 (通义编辑)', cost: 1 },
   { value: 'gpt-image-2', label: 'GPT Image 2', cost: 2 },
+  { value: 'gpt-image-2-4k', label: 'GPT Image 2 4K', cost: 8 },
   { value: 'gpt-image-2.5-flare', label: 'GPT Image 2.5 Flare', cost: 4 },
   { value: 'gpt-image-2.5-sunburst', label: 'GPT Image 2.5 Sunburst', cost: 6 },
   { value: 'gemini-3.1-flash-image', label: 'Gemini 3.1 Flash Image', cost: 2 },
-  { value: 'grok-imagine-image', label: 'Grok Imagine', cost: 2 },
+  { value: 'grok-imagine-image', label: 'Grok Imagine', cost: 6 },
 ];
 
 // 常用画幅比例：覆盖社交头像、短视频、横屏壁纸、海报、电影宽幅等主流场景

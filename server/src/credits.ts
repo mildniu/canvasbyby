@@ -15,6 +15,18 @@ export interface ModelCreditRule {
 }
 
 export const MODEL_PRICING_RULES: ModelCreditRule[] = [
+  // 4 积分档位：高端旗舰模型（先于通用 GPT 规则匹配）
+  {
+    pattern: /gpt-image-2\.5-sunburst/i,
+    cost: 4,
+    desc: 'GPT Image 2.5 Sunburst 旗舰生图 (4积分)',
+  },
+  // 2 积分档位（特殊）：GPT Image 2.5 Flare
+  {
+    pattern: /gpt-image-2\.5-flare/i,
+    cost: 2,
+    desc: 'GPT Image 2.5 Flare 生图 (2积分)',
+  },
   // 1 积分档位：Qwen 系列
   {
     pattern: /qwen/i,

@@ -29,6 +29,11 @@ const FALLBACK_MODELS: Option[] = [
   { value: 'gpt-image-2.5-sunburst', label: 'GPT Image 2.5 Sunburst', cost: 6 },
 ];
 
+// 创作页默认选项
+const DEFAULT_MODEL = 'gpt-image-2.5-flare';
+const DEFAULT_RATIO = '9:16';
+const DEFAULT_RESOLUTION = '1K';
+
 // 常用画幅比例：覆盖社交头像、短视频、横屏壁纸、海报、电影宽幅等主流场景
 const RATIOS = [
   { value: 'original', label: '原图比例' },
@@ -87,7 +92,7 @@ export default function CreatePage() {
   const [prompt, setPrompt] = useState('');
   const [model, setModel] = useState('');
   const [modelOptions, setModelOptions] = useState<Option[]>(FALLBACK_MODELS);
-  const [ratio, setRatio] = useState('1:1');
+  const [ratio, setRatio] = useState(DEFAULT_RATIO);
   const [resolution, setResolution] = useState('1K');
   const [resolutionOptions, setResolutionOptions] = useState<Option[]>(RESOLUTIONS);
   const [count, setCount] = useState('1');
@@ -120,21 +125,23 @@ export default function CreatePage() {
             cost: data.pricing?.[m] ?? 2,
           }));
           setModelOptions(options);
-          // 默认选中第一个可用模型
-          setModel((cur) => (cur && data.models.includes(cur) ? cur : data.models[0]));
+          // 默认优先选中指定模型，不可用时回退第一个可用模型
+          const preferred = data.models.includes(DEFAULT_MODEL) ? DEFAULT_MODEL : data.models[0];
+          setModel((cur) => (cur && data.models.includes(cur) ? cur : preferred));
         }
-        // 分辨率白名单：仅展示被允许的档位；默认选中最高的允许档位
+        // 分辨率白名单：仅展示被允许的档位；默认优先 1K，不可用时选最高的允许档位
         if (Array.isArray(data.allowedResolutions) && data.allowedResolutions.length > 0) {
           const sorted = ['1K', '2K', '4K'].filter((r) => data.allowedResolutions!.includes(r));
           const resOptions: Option[] = sorted.map((r) => ({ value: r, label: r }));
           setResolutionOptions(resOptions);
-          setResolution((cur) => (sorted.includes(cur) ? cur : sorted[0]));
+          const preferredRes = sorted.includes(DEFAULT_RESOLUTION) ? DEFAULT_RESOLUTION : sorted[0];
+          setResolution((cur) => (sorted.includes(cur) ? cur : preferredRes));
         }
       })
       .catch(() => {
         // 拉取失败使用兜底列表
         setModelOptions(FALLBACK_MODELS);
-        setModel((cur) => cur || FALLBACK_MODELS[0].value);
+        setModel((cur) => cur || (FALLBACK_MODELS.find((m) => m.value === DEFAULT_MODEL)?.value ?? FALLBACK_MODELS[0].value));
       });
   }, []);
 

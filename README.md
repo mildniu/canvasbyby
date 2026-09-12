@@ -12,7 +12,7 @@
   - 支持 1:1、16:9、9:16、4:3、3:4 等多种主流画幅比例。
 
 - 🪙 **完善的用户积分与计费体系**：
-  - **阶梯定价**：Qwen 系列 1 积分 / 次，GPT / Gemini 标准档 2 积分 / 次，GPT Image 2.5 Flare 4 积分 / 次，GPT Image 2.5 Sunburst / Grok 系列 6 积分 / 次，GPT Image 2 4K 8 积分 / 次。
+  - **阶梯定价**：Qwen 系列 1 积分 / 次，GPT / Gemini 标准档 2 积分 / 次，GPT Image 2.5 Flare 4 积分 / 次，GPT Image 2.5 Sunburst / Grok 系列 6 积分 / 次，GPT Image 2 S 8 积分 / 次，GPT Image 2.5 FS 16 积分 / 次，GPT Image 2.5 SS 20 积分 / 次。
   - **新用户初始赠送**：默认赠送 20 积分。
   - **安全退费机制**：若上游接口异常导致任务失败，系统自动原路返还扣除积分。
   - **专属接口免积分特权**：普通用户可在「设置」中配置自己的私有 Base URL 与 API Key，配置后生图完全免费，不消耗任何平台积分！

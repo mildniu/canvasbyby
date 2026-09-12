@@ -22,8 +22,10 @@ describe('积分系统 (Credits System)', () => {
     expect(getModelCreditCost('dall-e-3')).toBe(2);
 
     // GPT 特殊档位
-    expect(getModelCreditCost('gpt-image-2-4k')).toBe(8);
+    expect(getModelCreditCost('gpt-image-2-s')).toBe(8);
     expect(getModelCreditCost('gpt-image-2.5-flare')).toBe(4);
+    expect(getModelCreditCost('gpt-image-2.5-fs')).toBe(16);
+    expect(getModelCreditCost('gpt-image-2.5-ss')).toBe(20);
     expect(getModelCreditCost('gpt-image-2.5-sunburst')).toBe(6);
 
     // Gemini 系列 2 积分

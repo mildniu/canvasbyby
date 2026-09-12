@@ -96,6 +96,9 @@ export const api = {
 
   getModels: () => request<ModelsResponse>('/api/models'),
 
+  // 管理员：全量生图模型（不做白名单过滤，供白名单配置点选）
+  adminGetAllModels: () => request<ModelsResponse>('/api/admin/models'),
+
   createImage: (p: {
     prompt: string;
     ratio: string;

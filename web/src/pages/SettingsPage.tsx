@@ -41,7 +41,7 @@ export default function SettingsPage() {
   // 管理员：加载网关可用模型与当前白名单
   const loadModelWhitelist = () => {
     if (!isAdmin) return;
-    api.getModels().then((data: ModelsResponse) => {
+    api.adminGetAllModels().then((data: ModelsResponse) => {
       const list = (data.models ?? []).map((m) => ({
         value: m,
         cost: data.pricing?.[m] ?? 2,

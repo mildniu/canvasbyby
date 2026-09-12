@@ -42,7 +42,8 @@ export function getUserGatewayConfig(db: Db, userId: string, secretKey: string):
 }
 
 export function clearUserGatewayConfig(db: Db, userId: string): void {
-  db.prepare('DELETE FROM user_settings WHERE user_id=?').run(userId);
+  // 仅清除网关相关配置，保留白名单等其他 user_settings（尤其 admin 兼任的全局默认白名单）
+  db.prepare('DELETE FROM user_settings WHERE user_id=? AND key IN (?,?)').run(userId, 'baseUrl', 'apiKey');
   log('CONFIG', `用户 [${userId}] 清除了自定义专属网关配置，已恢复继承平台共享接口`);
 }
 

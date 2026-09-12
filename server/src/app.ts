@@ -54,10 +54,10 @@ export async function buildApp(opts: AppOptions) {
   //   1. 全局默认白名单：user_settings(admin, allowedModels)，对所有普通用户生效
   //   2. 用户级覆盖白名单：user_settings(<userId>, allowedModels)，仅对该用户生效（优先级更高）
   // 存储均为 JSON 数组；空数组/无记录 = 跟随全局默认；全局也为空 = 完全不限制
-  const readModelList = (userId: string): string[] | null => {
+  const readModelList = (userId: string, key = 'allowedModels'): string[] | null => {
     const row = db
       .prepare('SELECT value FROM user_settings WHERE user_id=? AND key=?')
-      .get(userId, 'allowedModels') as { value: string } | undefined;
+      .get(userId, key) as { value: string } | undefined;
     if (!row?.value) return null;
     try {
       const parsed = JSON.parse(row.value);
@@ -67,11 +67,11 @@ export async function buildApp(opts: AppOptions) {
     }
   };
 
-  const writeModelList = (userId: string, models: string[]) => {
+  const writeModelList = (userId: string, models: string[], key = 'allowedModels') => {
     const upsert = db.prepare(
       'INSERT INTO user_settings(user_id,key,value) VALUES(?,?,?) ON CONFLICT(user_id,key) DO UPDATE SET value=excluded.value'
     );
-    upsert.run(userId, 'allowedModels', JSON.stringify(models));
+    upsert.run(userId, key, JSON.stringify(models));
   };
 
   // 全局默认白名单（管理员在设置页维护）
@@ -79,7 +79,13 @@ export async function buildApp(opts: AppOptions) {
   const setAllowedModels = (models: string[]) => writeModelList('admin', models);
 
   // 解析某用户最终生效的白名单：用户级覆盖 > 全局默认；null 表示不限制
+  // 特例：admin 账号（userId='admin'）与全局默认共用 user_id，故其"用户级"配置存储于专属 key，
+  // 实现 admin 自己的白名单与普通用户的全局默认分开设置
+  const ADMIN_OWN_MODELS_KEY = 'adminAllowedModels';
   const getEffectiveAllowedModels = (userId: string): string[] | null => {
+    if (userId === 'admin') {
+      return readModelList('admin', ADMIN_OWN_MODELS_KEY) ?? getAllowedModels();
+    }
     const userLevel = readModelList(userId);
     if (userLevel) return userLevel;
     return getAllowedModels();
@@ -121,8 +127,15 @@ export async function buildApp(opts: AppOptions) {
     return getAllowedResolutions();
   };
 
-  // 判断某用户在当前网关模式下是否需要受限（专属接口与 admin 不受限）
+  // 判断某用户在当前网关模式下是否需要受限
+  // 模型白名单：专属接口的普通用户不受限；admin 同样受白名单约束
   const isModelRestricted = (userId: string, role: string, isCustomGateway: boolean): boolean => {
+    if (role === 'admin') return true;
+    return !isCustomGateway;
+  };
+
+  // 分辨率白名单：admin 与专属接口用户不受限（仅约束共享接口的普通用户）
+  const isResolutionRestricted = (role: string, isCustomGateway: boolean): boolean => {
     return role !== 'admin' && !isCustomGateway;
   };
 
@@ -366,8 +379,9 @@ export async function buildApp(opts: AppOptions) {
     return rows.map((r) => ({
       ...r,
       credits: r.role === 'admin' ? 999999 : (r.credits ?? 20),
-      // 用户级模型白名单覆盖配置（null = 跟随全局默认）
-      userAllowedModels: r.role === 'admin' ? null : readModelList(r.id),
+      // 用户级模型白名单覆盖配置（null = 跟随全局默认；admin 账号读其专属配置）
+      userAllowedModels:
+        r.id === 'admin' ? readModelList('admin', ADMIN_OWN_MODELS_KEY) : readModelList(r.id),
       userAllowedResolutions: r.role === 'admin' ? null : readResolutionList(r.id),
     }));
   });
@@ -498,6 +512,26 @@ export async function buildApp(opts: AppOptions) {
     return testGateway(cfg, opts.upstreamFetch);
   });
 
+  // 生图模型关键词过滤（排除纯对话/嵌入模型）
+  const IMAGE_RE = /image|dall|flux|seedream|banana|imagen|photo|draw|paint|mj|midjourney|sd|stable|kolors|hidream|cogview|irag|janus|omnigen|pixart|playground|recraft|ideogram|doubao-seed|wanx|grok-imagine/i;
+
+  /** 从中转站拉取模型列表并过滤出生图模型（不做白名单过滤） */
+  async function fetchGatewayImageModels(cfg: GatewayConfig): Promise<{ all: string[]; imageModels: string[] }> {
+    const fetchLike = opts.upstreamFetch ?? fetch;
+    const res = await fetchLike(cfg.baseUrl + '/v1/models', {
+      headers: { Authorization: `Bearer ${cfg.apiKey}` },
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      logError('MODELS', `拉取模型列表失败 HTTP ${res.status}`, text);
+      throw new Error(`中转站返回 ${res.status}: ${text.slice(0, 200)}`);
+    }
+    const json: any = await res.json();
+    const all: string[] = (json?.data ?? []).map((m: any) => m.id).filter(Boolean);
+    const imageModels = all.filter((m) => IMAGE_RE.test(m));
+    return { all, imageModels };
+  }
+
   // ---- 模型列表：透传中转站 /v1/models，过滤出可用生图模型 ----
   app.get('/api/models', async (req, reply) => {
     const cfg = getUserGatewayConfig(db, req.user!.userId, opts.secretKey);
@@ -505,28 +539,14 @@ export async function buildApp(opts: AppOptions) {
       return reply.code(400).send({ error: '请先在「设置」页配置网关地址与 API Key' });
     }
     try {
-      const fetchLike = opts.upstreamFetch ?? fetch;
-      const res = await fetchLike(cfg.baseUrl + '/v1/models', {
-        headers: { Authorization: `Bearer ${cfg.apiKey}` },
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        logError('MODELS', `拉取模型列表失败 HTTP ${res.status}`, text);
-        return reply.code(502).send({ error: `中转站返回 ${res.status}: ${text.slice(0, 200)}` });
-      }
-      const json: any = await res.json();
-      const all: string[] = (json?.data ?? []).map((m: any) => m.id).filter(Boolean);
-      // 生图模型关键词过滤（排除纯对话/嵌入模型）
-      const IMAGE_RE = /image|dall|flux|seedream|banana|imagen|photo|draw|paint|mj|midjourney|sd|stable|kolors|hidream|cogview|irag|janus|omnigen|pixart|playground|recraft|ideogram|doubao-seed|wanx|grok-imagine/i;
-      const imageModels = all.filter((m) => IMAGE_RE.test(m));
+      const { all, imageModels } = await fetchGatewayImageModels(cfg);
       let finalModels = imageModels.length ? imageModels : all;
 
-      // 管理员配置了模型白名单时，普通用户（共享接口模式）仅能看到并使用被允许的模型
+      // 管理员配置了模型白名单时，共享接口模式下的用户（含 admin 自己）仅能看到并使用被允许的模型
       // 用户级白名单优先于全局默认白名单
-      const isAdmin = req.user!.role === 'admin';
       const effectiveAllowed = getEffectiveAllowedModels(req.user!.userId);
       const restricted = isModelRestricted(req.user!.userId, req.user!.role, !!cfg.isCustom);
-      if (!isAdmin && effectiveAllowed && restricted) {
+      if (effectiveAllowed && restricted) {
         finalModels = finalModels.filter((m) => effectiveAllowed.includes(m));
         log('MODELS', `🔒 模型白名单生效：用户 [${req.user!.username}] 可用 ${finalModels.length}/${imageModels.length || all.length} 个模型`, { allowed: effectiveAllowed });
       }
@@ -534,7 +554,7 @@ export async function buildApp(opts: AppOptions) {
       const pricing = getModelsPricingMap(finalModels);
 
       // 分辨率白名单：普通用户（共享接口模式）仅能使用被允许的分辨率档位；admin/专属接口不受限
-      const effectiveResolutions = restricted
+      const effectiveResolutions = isResolutionRestricted(req.user!.role, !!cfg.isCustom)
         ? (getEffectiveAllowedResolutions(req.user!.userId) ?? VALID_RESOLUTIONS)
         : VALID_RESOLUTIONS;
 
@@ -548,6 +568,26 @@ export async function buildApp(opts: AppOptions) {
       };
     } catch (e: any) {
       logError('MODELS', '拉取模型列表异常', e);
+      return reply.code(502).send({ error: e?.message ?? '连接中转站失败' });
+    }
+  });
+
+  // ---- 管理员：全量生图模型列表（不做白名单过滤，供白名单配置弹窗点选） ----
+  app.get('/api/admin/models', async (req, reply) => {
+    if (req.user?.role !== 'admin') return reply.code(403).send({ error: '需要管理员权限' });
+    const cfg = getUserGatewayConfig(db, req.user!.userId, opts.secretKey);
+    if (!cfg.baseUrl || !cfg.apiKey) {
+      return reply.code(400).send({ error: '请先在「设置」页配置网关地址与 API Key' });
+    }
+    try {
+      const { all, imageModels } = await fetchGatewayImageModels(cfg);
+      const finalModels = imageModels.length ? imageModels : all;
+      return {
+        models: finalModels,
+        total: all.length,
+        pricing: getModelsPricingMap(finalModels),
+      };
+    } catch (e: any) {
       return reply.code(502).send({ error: e?.message ?? '连接中转站失败' });
     }
   });
@@ -572,6 +612,7 @@ export async function buildApp(opts: AppOptions) {
   });
 
   // ---- 管理员：用户级模型白名单（优先于全局默认） ----
+  // admin 账号（id='admin'）的用户级配置存储于专属 key，与其兼任的全局默认分开
   app.get('/api/admin/users/:id/allowed-models', async (req, reply) => {
     if (req.user?.role !== 'admin') return reply.code(403).send({ error: '需要管理员权限' });
     const { id } = req.params as { id: string };
@@ -581,7 +622,7 @@ export async function buildApp(opts: AppOptions) {
       userId: id,
       username: user.username,
       // 用户级覆盖配置；null 表示未单独设置（跟随全局默认）
-      userAllowedModels: readModelList(id),
+      userAllowedModels: readModelList(id, id === 'admin' ? ADMIN_OWN_MODELS_KEY : 'allowedModels'),
       globalAllowedModels: getAllowedModels() ?? [],
     };
   });
@@ -592,10 +633,11 @@ export async function buildApp(opts: AppOptions) {
     const { allowedModels, mode } = (req.body ?? {}) as { allowedModels?: string[]; mode?: 'override' | 'inherit' };
     const user = db.prepare('SELECT id, username, role FROM users WHERE id=?').get(id) as any;
     if (!user) return reply.code(404).send({ error: '用户不存在' });
+    const targetKey = id === 'admin' ? ADMIN_OWN_MODELS_KEY : 'allowedModels';
 
     // mode=inherit：清除用户级覆盖，恢复跟随全局默认白名单
     if (mode === 'inherit') {
-      db.prepare("DELETE FROM user_settings WHERE user_id=? AND key='allowedModels'").run(id);
+      db.prepare('DELETE FROM user_settings WHERE user_id=? AND key=?').run(id, targetKey);
       log('ADMIN', `管理员将用户 [${user.username}] 的模型白名单恢复为跟随全局默认`);
       return { ok: true, userAllowedModels: null };
     }
@@ -604,7 +646,7 @@ export async function buildApp(opts: AppOptions) {
       return reply.code(400).send({ error: '参数错误：allowedModels 必须为字符串数组' });
     }
     const cleaned = Array.from(new Set(allowedModels.map((m) => m.trim()).filter(Boolean)));
-    writeModelList(id, cleaned);
+    writeModelList(id, cleaned, targetKey);
     log('ADMIN', `管理员更新用户 [${user.username}] 的专属模型白名单：${cleaned.length ? cleaned.join(', ') : '（不限制）'}`);
     return { ok: true, userAllowedModels: cleaned };
   });
@@ -720,17 +762,22 @@ export async function buildApp(opts: AppOptions) {
       return reply.code(400).send({ error: '系统尚未配置网关地址或 API Key，请联系管理员在设置中配置' });
     }
 
-    // 模型白名单校验：普通用户使用平台共享接口时，仅可调用管理员放行的模型（用户级优先）
+    // 模型白名单校验：共享接口模式下（含 admin）仅可调用白名单内的模型（用户级优先）
     if (isModelRestricted(req.user!.userId, req.user!.role, isCustomGateway)) {
       const effectiveAllowed = getEffectiveAllowedModels(req.user!.userId);
       if (effectiveAllowed && !effectiveAllowed.includes(model)) {
         log('TASK', `⛔ 用户 [${req.user!.username}] 尝试调用未授权模型 [${model}]，已拦截`);
         return reply.code(403).send({
-          error: `模型「${model}」未对您开放，请切换到管理员为您允许的模型，或在「设置」中配置您自己的专属接口。`,
+          error:
+            req.user!.role === 'admin'
+              ? `模型「${model}」未在白名单中，请在管理后台调整模型白名单。`
+              : `模型「${model}」未对您开放，请切换到管理员为您允许的模型，或在「设置」中配置您自己的专属接口。`,
         });
       }
+    }
 
-      // 分辨率白名单校验：仅可使用被允许的分辨率档位（用户级优先）
+    // 分辨率白名单校验：共享接口的普通用户仅可使用被允许的分辨率档位（用户级优先）
+    if (isResolutionRestricted(req.user!.role, isCustomGateway)) {
       const effectiveResolutions = getEffectiveAllowedResolutions(req.user!.userId);
       if (effectiveResolutions && !effectiveResolutions.includes(resolution)) {
         log('TASK', `⛔ 用户 [${req.user!.username}] 尝试使用未授权分辨率 [${resolution}]，已拦截`);

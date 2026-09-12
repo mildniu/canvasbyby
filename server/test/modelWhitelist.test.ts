@@ -122,15 +122,40 @@ describe('模型白名单 (Admin Model Whitelist)', () => {
     expect(allowedTask.json().status).toBe('done');
     expect(allowedTask.json().userCredits).toBe(49);
 
-    // 8. 管理员调用白名单外模型 -> 不受限
+    // 8. 管理员调用白名单外模型 -> 同样受白名单拦截
     const adminTask = await app.inject({
       method: 'POST',
       url: '/api/tasks/image',
       headers: { cookie: adminCk },
       payload: { prompt: 'a cat', model: 'gpt-image-2', ratio: '1:1' },
     });
-    expect(adminTask.statusCode).toBe(200);
-    expect(adminTask.json().status).toBe('done');
+    expect(adminTask.statusCode).toBe(403);
+
+    // 8b. 管理员拉取模型列表 -> 同样只显示白名单内模型
+    const adminModelsFiltered = await app.inject({
+      method: 'GET',
+      url: '/api/models',
+      headers: { cookie: adminCk },
+    });
+    expect(adminModelsFiltered.json().models).toEqual(['Qwen-Image', 'Qwen-Image-Edit-2509']);
+
+    // 8b2. 管理端全量模型接口 -> 不受白名单过滤（供白名单配置点选）
+    const adminAllModels = await app.inject({
+      method: 'GET',
+      url: '/api/admin/models',
+      headers: { cookie: adminCk },
+    });
+    expect(adminAllModels.json().models).toHaveLength(6);
+
+    // 8c. 管理员调用白名单内模型 -> 正常
+    const adminTaskOk = await app.inject({
+      method: 'POST',
+      url: '/api/tasks/image',
+      headers: { cookie: adminCk },
+      payload: { prompt: 'a cat', model: 'Qwen-Image', ratio: '1:1' },
+    });
+    expect(adminTaskOk.statusCode).toBe(200);
+    expect(adminTaskOk.json().status).toBe('done');
 
     // 9. 清空白名单 -> 普通用户恢复全量模型
     await app.inject({
@@ -217,6 +242,110 @@ describe('模型白名单 (Admin Model Whitelist)', () => {
     expect(task.statusCode).toBe(200);
     expect(task.json().status).toBe('done');
     expect(task.json().userCredits).toBe(10); // 未扣积分
+
+    await app.close();
+  });
+
+  it('admin 可单独设置自己的白名单，与全局默认（普通用户基准）互不影响', async () => {
+    const app = await buildApp({
+      accessPassword: 'woshiniu2',
+      secretKey: 'q'.repeat(32),
+      dataDir: ':memory:dir:',
+      upstreamFetch: makeMockFetch(),
+    });
+    await app.ready();
+
+    const adminLogin = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: 'admin', password: 'woshiniu2' },
+    });
+    const adminCk = getCookie(adminLogin);
+    await app.inject({
+      method: 'PUT',
+      url: '/api/settings',
+      headers: { cookie: adminCk },
+      payload: { baseUrl: 'https://gw.test', apiKey: 'sk-test' },
+    });
+
+    // 1. 全局默认：仅 Qwen 系列（普通用户的基准）
+    await app.inject({
+      method: 'PUT',
+      url: '/api/admin/allowed-models',
+      headers: { cookie: adminCk },
+      payload: { allowedModels: ['Qwen-Image'] },
+    });
+
+    // 2. admin 为自己单独配置：允许全部 6 个模型（写入专属 key，不影响全局默认）
+    const setOwn = await app.inject({
+      method: 'PUT',
+      url: '/api/admin/users/admin/allowed-models',
+      headers: { cookie: adminCk },
+      payload: { allowedModels: MOCK_MODELS },
+    });
+    expect(setOwn.statusCode).toBe(200);
+
+    // 3. admin 自己可见全部 6 个模型
+    const adminModels = await app.inject({
+      method: 'GET',
+      url: '/api/models',
+      headers: { cookie: adminCk },
+    });
+    expect(adminModels.json().models).toHaveLength(6);
+
+    // 4. 普通用户仍只看到全局默认的 1 个
+    await app.inject({
+      method: 'POST',
+      url: '/api/admin/users',
+      headers: { cookie: adminCk },
+      payload: { username: 'normaluser', password: 'password123', role: 'user', credits: 50 },
+    });
+    const userLogin = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: 'normaluser', password: 'password123' },
+    });
+    const userCk = getCookie(userLogin);
+    const userModels = await app.inject({
+      method: 'GET',
+      url: '/api/models',
+      headers: { cookie: userCk },
+    });
+    expect(userModels.json().models).toEqual(['Qwen-Image']);
+
+    // 5. admin 调用全局未放行但自己专属白名单内的模型 -> 正常
+    const adminTask = await app.inject({
+      method: 'POST',
+      url: '/api/tasks/image',
+      headers: { cookie: adminCk },
+      payload: { prompt: 'a cat', model: 'gpt-image-2', ratio: '1:1' },
+    });
+    expect(adminTask.statusCode).toBe(200);
+
+    // 6. 普通用户调用该模型 -> 仍被全局默认拦截
+    const userTask = await app.inject({
+      method: 'POST',
+      url: '/api/tasks/image',
+      headers: { cookie: userCk },
+      payload: { prompt: 'a cat', model: 'gpt-image-2', ratio: '1:1' },
+    });
+    expect(userTask.statusCode).toBe(403);
+
+    // 7. admin 恢复跟随全局默认 -> 只剩 1 个模型
+    const inherit = await app.inject({
+      method: 'PUT',
+      url: '/api/admin/users/admin/allowed-models',
+      headers: { cookie: adminCk },
+      payload: { mode: 'inherit' },
+    });
+    expect(inherit.statusCode).toBe(200);
+    expect(inherit.json().userAllowedModels).toBeNull();
+    const adminModelsAfter = await app.inject({
+      method: 'GET',
+      url: '/api/models',
+      headers: { cookie: adminCk },
+    });
+    expect(adminModelsAfter.json().models).toEqual(['Qwen-Image']);
 
     await app.close();
   });

@@ -41,7 +41,7 @@ export default function AdminUsersPage() {
   const openModelsModal = async (user: User) => {
     try {
       const [modelsRes, wlRes, resRes] = await Promise.all([
-        api.getModels(),
+        api.adminGetAllModels(),
         api.adminGetUserAllowedModels(user.id),
         api.adminGetUserAllowedResolutions(user.id),
       ]);
@@ -295,9 +295,7 @@ export default function AdminUsersPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 sm:px-6 sm:py-4">
-                      {isAdmin ? (
-                        <span className="text-[11px] text-neutral-400 sm:text-xs">不受限</span>
-                      ) : u.userAllowedModels ? (
+                      {u.userAllowedModels ? (
                         <button
                           type="button"
                           onClick={() => openModelsModal(u)}
